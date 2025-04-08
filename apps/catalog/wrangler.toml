@@ -1,0 +1,15 @@
+workers_dev = true
+name = "catalog"
+compatibility_date = "2025-03-11"
+compatibility_flags = ["nodejs_compat"]
+main = "./build/server/index.js"
+assets = { directory = "./build/client/" }
+
+[vars]
+VALUE_FROM_CLOUDFLARE = "Hello from Cloudflare"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "catalog_maasee"
+database_id = "5a606719-0276-489b-a571-42edf389d264"
+migrations_dir = "drizzle"

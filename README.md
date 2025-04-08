@@ -1,3 +1,28 @@
+# Catalyzer::Catalog, Analyze, Auth with Store
+
+Catalyzer（kǽtəlàizər・カタライザー）は、データを保存し、カタログを構築し、分析するためのシステムです。大きく分けて以下の機能を持ちます。
+
+- auth: 認証機能、Auth0を利用
+- profile: プロファイル機能、ユーザープロファイルを管理
+- catalog: カタログ機能、データの所在（URL）及びメタデータを管理
+- store: ストア機能、データを保存するためのストレージ機能、バックエンドはS3互換APIを持つObject Storageとする
+- analyzer: データ分析機能、BI及びGIS Viewerを提供
+
+## 実装
+
+- [Turborepo](https://turbo.build/repo)
+    - Turborepoを利用してmono-repoで実装
+- [React Router](https://reactrouter.com/)
+- [Drizzle ORM](https://github.com/drizzle-team/drizzle-orm)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [MDXEditor](https://github.com/mdx-editor/editor)
+
+
+
+
+以下TurborepoのREADME
+---
+
 # Turborepo starter
 
 This Turborepo starter is maintained by the Turborepo core team.
