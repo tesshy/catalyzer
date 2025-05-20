@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, UploadFile, File
 from pydantic import HttpUrl
 
 from ..models import Catalog, CatalogCreate, CatalogUpdate, SearchQuery
@@ -90,31 +90,55 @@ async def search_catalogs(
 
 @router.post("/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
 async def upload_markdown(
-    file: UploadFile = File(...),
+    request: Request,
+    file: UploadFile = File(None),
     catalog_service: CatalogService = Depends(),
 ):
-    """Create a new catalog entry from a Markdown file upload."""
-    if not file.filename.endswith((".md", ".markdown")):
+    """Create a new catalog entry from a Markdown file upload or direct text/markdown content."""
+    markdown_content = None
+    filename = "document.md"
+    
+    # Handle file upload
+    if file:
+        if not file.filename.endswith((".md", ".markdown")):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only Markdown files are accepted",
+            )
+            
+        filename = file.filename
+        content = await file.read()
+        try:
+            markdown_content = content.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Markdown file must be UTF-8 encoded",
+            )
+    
+    # Handle direct text/markdown content
+    elif request.headers.get("content-type") == "text/markdown":
+        content = await request.body()
+        try:
+            markdown_content = content.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Markdown content must be UTF-8 encoded",
+            )
+    
+    # Neither file nor text/markdown content provided
+    else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only Markdown files are accepted",
+            detail="Content-Type must be text/markdown when not using multipart/form-data",
         )
     
-    # Read the markdown file content
-    content = await file.read()
-    try:
-        content_str = content.decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Markdown file must be UTF-8 encoded",
-        )
-    
-    # Parse the markdown file to extract frontmatter
+    # Process the markdown content
     try:
         # Extract YAML frontmatter using regex
         pattern = r"^---\s*\n(.*?)\n---\s*\n(.*)$"
-        match = re.match(pattern, content_str, re.DOTALL)
+        match = re.match(pattern, markdown_content, re.DOTALL)
         
         if not match:
             raise ValueError("Invalid markdown format: Missing frontmatter")
@@ -134,7 +158,7 @@ async def upload_markdown(
         
         # Create catalog data
         catalog = CatalogCreate(
-            title=frontmatter.get("title", file.filename),
+            title=frontmatter.get("title", filename),
             author=frontmatter.get("author", ""),
             url=HttpUrl(frontmatter.get("url", "https://example.com/")),
             tags=frontmatter.get("tags", []),
