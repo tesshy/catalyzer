@@ -66,6 +66,7 @@ This data is...
 ### Catalog Management
 
 - `POST /catalogs/` - Create a new catalog
+- `POST /catalogs/new` - Create a new catalog from a Markdown file upload
 - `GET /catalogs/{catalog_id}` - Get a catalog by ID
 - `PUT /catalogs/{catalog_id}` - Update a catalog
 - `DELETE /catalogs/{catalog_id}` - Delete a catalog
@@ -75,6 +76,28 @@ This data is...
 - `GET /catalogs/search/?tag=tag1,tag2` - Search by tags
 - `GET /catalogs/search/?q=searchterm` - Full-text search
 - `GET /catalogs/search/?tag=tag1&q=searchterm` - Combined search
+
+### Markdown File Upload
+
+You can upload Markdown files directly to create new catalog entries using the `/catalogs/new` endpoint.
+The Markdown file should include YAML frontmatter with the following metadata fields:
+
+```markdown
+---
+title: data1.csv # Title
+author: b@contoso.com # Author's email address
+url: https://contoso.com/data1.md # Location of the catalog markdown file
+tags: [sample, csv] # Tags
+locations: [https://contoso.com/data1.csv] # Locations of the data, multiple possible
+created_at: 2025-01-01T12:34:56Z # Creation date (optional)
+updated_at: 2025-05-20T12:34:56Z # Last update date (optional)
+---
+# data1.csv
+
+This data is...
+```
+
+The endpoint will parse the frontmatter metadata and create a catalog entry with the appropriate fields.
 
 ## Database Structure
 

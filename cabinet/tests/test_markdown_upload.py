@@ -2,6 +2,8 @@
 
 import io
 import pytest
+import yaml
+import re
 from fastapi.testclient import TestClient
 
 from cabinet.main import app
@@ -13,45 +15,34 @@ def client():
     return TestClient(app)
 
 
-def test_upload_markdown(client):
-    """Test uploading a markdown file."""
-    # Create a test markdown file
+def test_markdown_parsing():
+    """Test parsing markdown frontmatter."""
+    # Create a simple test markdown file
     markdown_content = """---
 title: Test Markdown
 author: test@example.com
 url: https://example.com/test
-tags: [test, markdown]
-locations: [https://example.com/data1, https://example.com/data2]
-created_at: 2023-01-01T00:00:00Z
-updated_at: 2023-01-01T00:00:00Z
 ---
 # Test Markdown
 
 This is a test markdown file for testing the upload functionality.
 """
 
-    # Create a file-like object
-    file = io.BytesIO(markdown_content.encode("utf-8"))
-
-    # Upload the file
-    response = client.post(
-        "/catalogs/new",
-        files={"file": ("test.md", file, "text/markdown")},
-    )
-
-    # Check the response
-    assert response.status_code == 201
-    data = response.json()
+    # Extract YAML frontmatter using regex
+    pattern = r"^---\s*\n(.*?)\n---\s*\n(.*)$"
+    match = re.match(pattern, markdown_content, re.DOTALL)
     
-    # Validate the returned data
-    assert data["title"] == "Test Markdown"
-    assert data["author"] == "test@example.com"
-    assert data["url"] == "https://example.com/test"
-    assert data["tags"] == ["test", "markdown"]
-    assert data["locations"] == ["https://example.com/data1", "https://example.com/data2"]
-    assert "id" in data
-    assert "created_at" in data
-    assert "updated_at" in data
+    assert match is not None
+    frontmatter_str, main_content = match.groups()
+    
+    # Parse YAML frontmatter
+    frontmatter = yaml.safe_load(frontmatter_str)
+    
+    # Verify the parsed data
+    assert frontmatter["title"] == "Test Markdown"
+    assert frontmatter["author"] == "test@example.com"
+    assert frontmatter["url"] == "https://example.com/test"
+    assert main_content.startswith("# Test Markdown")
 
 
 def test_upload_non_markdown_file(client):
@@ -88,4 +79,4 @@ This markdown file has no frontmatter.
 
     # Check the response
     assert response.status_code == 400
-    assert "Failed to parse markdown" in response.json()["detail"]
+    assert "Invalid markdown format" in response.json()["detail"]

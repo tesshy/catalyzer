@@ -9,6 +9,7 @@ from pydantic import HttpUrl
 
 from ..database import CabinetDB
 from ..models import Catalog, CatalogCreate, CatalogUpdate
+from ..tools.import_catalog import extract_frontmatter
 
 
 class CatalogService:
@@ -36,6 +37,42 @@ class CatalogService:
         
         # Convert back to the Catalog model
         return Catalog(**result)
+    
+    def create_catalog_from_markdown(self, markdown_content: str, filename: str = None) -> Catalog:
+        """Create a new catalog entry from a markdown file content.
+        
+        Args:
+            markdown_content: The content of the markdown file
+            filename: Optional filename to use as a fallback for missing title
+            
+        Returns:
+            The created catalog
+        """
+        try:
+            # Extract frontmatter and content
+            frontmatter, content = extract_frontmatter(markdown_content)
+            
+            # Prepare catalog data with proper types
+            catalog_data = {
+                "title": frontmatter.get("title", filename or "Untitled"),
+                "author": frontmatter.get("author", ""),
+                "url": frontmatter.get("url", "https://example.com/"),
+                "tags": frontmatter.get("tags", []),
+                "locations": frontmatter.get("locations", []),
+                "content": content,
+            }
+            
+            # Add optional timestamp fields if present
+            if "created_at" in frontmatter:
+                catalog_data["created_at"] = frontmatter["created_at"]
+            if "updated_at" in frontmatter:
+                catalog_data["updated_at"] = frontmatter["updated_at"]
+            
+            # Create catalog
+            catalog = CatalogCreate(**catalog_data)
+            return self.create_catalog(catalog)
+        except Exception as e:
+            raise ValueError(f"Failed to create catalog from markdown: {str(e)}")
 
     def get_catalog(self, catalog_id: UUID) -> Optional[Catalog]:
         """Get a catalog entry by ID."""
