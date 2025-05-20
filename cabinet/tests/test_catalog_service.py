@@ -21,19 +21,8 @@ def test_db():
     conn = duckdb.connect(":memory:")
     
     # Create the test table
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS cabinet (
-        id UUID PRIMARY KEY,
-        title VARCHAR,
-        author VARCHAR,
-        url VARCHAR,
-        tags VARCHAR[],
-        locations VARCHAR[],
-        created_at TIMESTAMP,
-        updated_at TIMESTAMP,
-        content VARCHAR
-    )
-    """)
+    from cabinet.database import create_table
+    create_table(conn)
     
     yield conn
     conn.close()
@@ -73,6 +62,7 @@ def test_create_catalog(service):
     assert result.id is not None
     assert result.created_at is not None
     assert result.updated_at is not None
+    assert isinstance(result.properties, dict)
 
 
 def test_get_catalog(service):

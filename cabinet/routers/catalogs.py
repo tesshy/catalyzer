@@ -164,6 +164,7 @@ async def upload_markdown(
             tags=frontmatter.get("tags", []),
             locations=[HttpUrl(location) for location in frontmatter.get("locations", [])],
             content=main_content,
+            properties=frontmatter,  # Include the full frontmatter in properties
             created_at=frontmatter.get("created_at", now),
             updated_at=frontmatter.get("updated_at", now),
         )
