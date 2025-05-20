@@ -3,10 +3,11 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 
 from ..models import Catalog, CatalogCreate, CatalogUpdate, SearchQuery
 from ..services.catalog_service import CatalogService
+from ..utils import parse_markdown_with_metadata
 
 router = APIRouter(
     prefix="/catalogs",
@@ -82,3 +83,58 @@ async def search_catalogs(
         )
     
     return catalog_service.search_catalogs(tags=tag, query=q)
+
+
+@router.post("/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+async def upload_markdown(
+    file: UploadFile = File(...),
+    catalog_service: CatalogService = Depends(),
+):
+    """Create a new catalog entry from a Markdown file upload."""
+    if not file.filename.endswith((".md", ".markdown")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only Markdown files are accepted",
+        )
+    
+    # Read the markdown file content
+    content = await file.read()
+    try:
+        content_str = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Markdown file must be UTF-8 encoded",
+        )
+    
+    # Parse the markdown file to extract metadata and content
+    try:
+        metadata, html_content = parse_markdown_with_metadata(content_str)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse markdown: {str(e)}",
+        )
+    
+    # Create a catalog entry from the metadata
+    try:
+        # Only include fields that exist in our CatalogCreate model
+        catalog_data = {
+            "title": metadata.get("title", file.filename),
+            "author": metadata.get("author", ""),
+            "url": metadata.get("url", ""),
+            "tags": metadata.get("tags", []),
+            "locations": metadata.get("locations", []),
+            "content": content_str.split("---", 2)[-1].strip(),  # Get content after frontmatter
+            "created_at": metadata.get("created_at"),
+            "updated_at": metadata.get("updated_at"),
+        }
+        
+        # Create the catalog entry
+        catalog = CatalogCreate(**catalog_data)
+        return catalog_service.create_catalog(catalog)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create catalog: {str(e)}",
+        )
