@@ -1,9 +1,13 @@
 """API routes for catalog operations."""
 
+import re
+import yaml
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from pydantic import HttpUrl
 
 from ..models import Catalog, CatalogCreate, CatalogUpdate, SearchQuery
 from ..services.catalog_service import CatalogService
@@ -82,3 +86,74 @@ async def search_catalogs(
         )
     
     return catalog_service.search_catalogs(tags=tag, query=q)
+
+
+@router.post("/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+async def upload_markdown(
+    file: UploadFile = File(...),
+    catalog_service: CatalogService = Depends(),
+):
+    """Create a new catalog entry from a Markdown file upload."""
+    if not file.filename.endswith((".md", ".markdown")):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only Markdown files are accepted",
+        )
+    
+    # Read the markdown file content
+    content = await file.read()
+    try:
+        content_str = content.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Markdown file must be UTF-8 encoded",
+        )
+    
+    # Parse the markdown file to extract frontmatter
+    try:
+        # Extract YAML frontmatter using regex
+        pattern = r"^---\s*\n(.*?)\n---\s*\n(.*)$"
+        match = re.match(pattern, content_str, re.DOTALL)
+        
+        if not match:
+            raise ValueError("Invalid markdown format: Missing frontmatter")
+        
+        frontmatter_str, main_content = match.groups()
+        
+        # Parse YAML frontmatter
+        try:
+            frontmatter = yaml.safe_load(frontmatter_str)
+            if not isinstance(frontmatter, dict):
+                raise ValueError("Frontmatter is not a dictionary")
+        except Exception as e:
+            raise ValueError(f"Failed to parse frontmatter: {str(e)}")
+        
+        # Create a new catalog directly
+        now = datetime.now()
+        
+        # Create catalog data
+        catalog = CatalogCreate(
+            title=frontmatter.get("title", file.filename),
+            author=frontmatter.get("author", ""),
+            url=HttpUrl(frontmatter.get("url", "https://example.com/")),
+            tags=frontmatter.get("tags", []),
+            locations=[HttpUrl(location) for location in frontmatter.get("locations", [])],
+            content=main_content,
+            created_at=frontmatter.get("created_at", now),
+            updated_at=frontmatter.get("updated_at", now),
+        )
+        
+        # Create the catalog
+        return catalog_service.create_catalog(catalog)
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse markdown: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create catalog: {str(e)}",
+        )
