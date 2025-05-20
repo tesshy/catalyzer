@@ -56,9 +56,9 @@ class CatalogService:
             catalog_data = {
                 "title": frontmatter.get("title", filename or "Untitled"),
                 "author": frontmatter.get("author", ""),
-                "url": frontmatter.get("url", "https://example.com/"),
+                "url": HttpUrl(frontmatter.get("url", "https://example.com/")),
                 "tags": frontmatter.get("tags", []),
-                "locations": frontmatter.get("locations", []),
+                "locations": [HttpUrl(loc) for loc in frontmatter.get("locations", [])],
                 "content": content,
             }
             
