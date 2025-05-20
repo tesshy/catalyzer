@@ -45,41 +45,18 @@ This is a test markdown file for testing the upload functionality.
     assert main_content.startswith("# Test Markdown")
 
 
-def test_upload_non_markdown_file(client):
-    """Test uploading a non-markdown file."""
-    # Create a test non-markdown file
-    file_content = "This is not a markdown file."
-    file = io.BytesIO(file_content.encode("utf-8"))
-
-    # Upload the file
+def test_non_markdown_content_type(client):
+    """Test uploading with non-markdown content type."""
+    # Try uploading with incorrect content-type
     response = client.post(
         "/catalogs/new",
-        files={"file": ("test.txt", file, "text/plain")},
+        content="Some plain text",
+        headers={"Content-Type": "text/plain"}
     )
 
     # Check the response
     assert response.status_code == 400
-    assert "Only Markdown files are accepted" in response.json()["detail"]
-
-
-def test_upload_invalid_markdown(client):
-    """Test uploading an invalid markdown file (missing frontmatter)."""
-    # Create an invalid markdown file
-    markdown_content = """# No Frontmatter
-
-This markdown file has no frontmatter.
-"""
-    file = io.BytesIO(markdown_content.encode("utf-8"))
-
-    # Upload the file
-    response = client.post(
-        "/catalogs/new",
-        files={"file": ("invalid.md", file, "text/markdown")},
-    )
-
-    # Check the response
-    assert response.status_code == 400
-    assert "Invalid markdown format" in response.json()["detail"]
+    assert "Content-Type must be text/markdown" in response.json()["detail"]
 
 
 def test_upload_direct_markdown(client):
@@ -130,17 +107,3 @@ This markdown content has no frontmatter and is sent directly.
     # Check the response
     assert response.status_code == 400
     assert "Invalid markdown format" in response.json()["detail"]
-
-
-def test_upload_without_file_or_markdown(client):
-    """Test uploading without a file or markdown content."""
-    # Try uploading without a file or correct content-type
-    response = client.post(
-        "/catalogs/new",
-        content="Some plain text",
-        headers={"Content-Type": "text/plain"}
-    )
-
-    # Check the response
-    assert response.status_code == 400
-    assert "Content-Type must be text/markdown" in response.json()["detail"]
