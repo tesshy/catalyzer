@@ -124,6 +124,9 @@ CREATE TABLE IF NOT EXISTS cabinet (
     locations VARCHAR[],
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
-    content VARCHAR
+    content VARCHAR,
+    properties JSON
 );
 ```
+
+The `properties` field stores the complete YAML frontmatter as JSON, allowing you to access all metadata from the original markdown file, even custom fields that are not part of the standard schema.

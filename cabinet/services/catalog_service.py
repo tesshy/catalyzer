@@ -1,5 +1,6 @@
 """Catalog service for Catalyzer::Cabinet."""
 
+import json
 from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID
@@ -35,6 +36,10 @@ class CatalogService:
         # Create the catalog entry
         result = self.db.create_catalog(catalog_dict)
         
+        # Parse the properties field from JSON string if needed
+        if "properties" in result and isinstance(result["properties"], str):
+            result["properties"] = json.loads(result["properties"])
+        
         # Convert back to the Catalog model
         return Catalog(**result)
     
@@ -60,6 +65,7 @@ class CatalogService:
                 "tags": frontmatter.get("tags", []),
                 "locations": [HttpUrl(loc) for loc in frontmatter.get("locations", [])],
                 "content": content,
+                "properties": frontmatter,
             }
             
             # Add optional timestamp fields if present
@@ -83,6 +89,10 @@ class CatalogService:
         # Convert string URLs back to HttpUrl objects
         result["url"] = HttpUrl(result["url"])
         result["locations"] = [HttpUrl(loc) for loc in result["locations"]]
+        
+        # Parse the properties field from JSON string if needed
+        if "properties" in result and isinstance(result["properties"], str):
+            result["properties"] = json.loads(result["properties"])
         
         return Catalog(**result)
 
@@ -109,6 +119,11 @@ class CatalogService:
             # Convert string URLs back to HttpUrl objects
             result["url"] = HttpUrl(result["url"])
             result["locations"] = [HttpUrl(loc) for loc in result["locations"]]
+            
+            # Parse the properties field from JSON string if needed
+            if "properties" in result and isinstance(result["properties"], str):
+                result["properties"] = json.loads(result["properties"])
+                
             return Catalog(**result)
         
         return None
@@ -127,6 +142,11 @@ class CatalogService:
             # Convert string URLs to HttpUrl objects
             result["url"] = HttpUrl(result["url"])
             result["locations"] = [HttpUrl(loc) for loc in result["locations"]]
+            
+            # Parse the properties field from JSON string if needed
+            if "properties" in result and isinstance(result["properties"], str):
+                result["properties"] = json.loads(result["properties"])
+                
             catalogs.append(Catalog(**result))
         
         return catalogs

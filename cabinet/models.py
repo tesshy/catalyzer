@@ -1,7 +1,7 @@
 """Data models for Catalyzer::Cabinet."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -15,6 +15,7 @@ class CatalogBase(BaseModel):
     tags: List[str] = Field(default_factory=list)
     locations: List[HttpUrl] = Field(default_factory=list)
     content: str
+    properties: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class CatalogCreate(CatalogBase):

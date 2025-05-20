@@ -32,6 +32,16 @@ def get_db_connection(
         conn.execute(f"SET search_path TO {group}")
     
     # Create the table if it doesn't exist
+    create_table(conn)
+    
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def create_table(conn: duckdb.DuckDBPyConnection):
+    """Create the cabinet table if it doesn't exist."""
     conn.execute("""
     CREATE TABLE IF NOT EXISTS cabinet (
         id UUID PRIMARY KEY,
@@ -42,20 +52,18 @@ def get_db_connection(
         locations VARCHAR[],
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
-        content VARCHAR
+        content VARCHAR,
+        properties JSON
     )
     """)
-    
-    try:
-        yield conn
-    finally:
-        conn.close()
 
 
 def get_db():
     """Get a database connection for dependency injection."""
-    for conn in get_db_connection():
-        yield conn
+    conn = duckdb.connect(":memory:")  # Using in-memory database for testing
+    create_table(conn)  # Create the table with correct schema
+    yield conn
+    conn.close()
 
 
 class CabinetDB:
@@ -81,7 +89,9 @@ class CabinetDB:
         query = f"INSERT INTO cabinet ({columns}) VALUES ({placeholders}) RETURNING *"
         result = self.conn.execute(query, list(catalog_data.values())).fetchone()
         
-        return dict(zip(catalog_data.keys(), result))
+        # Get the column names from the result
+        columns = [col[0] for col in self.conn.description]
+        return dict(zip(columns, result))
 
     def get_catalog_by_id(self, catalog_id: str) -> Optional[Dict[str, Any]]:
         """Get a catalog entry by ID."""

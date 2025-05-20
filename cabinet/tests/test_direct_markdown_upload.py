@@ -39,3 +39,9 @@ This is a simple markdown file.
     assert data["title"] == "Simple Direct Markdown"
     assert data["author"] == "simple@example.com"
     assert data["content"].startswith("# Simple Content")
+    
+    # Check that the properties field contains the frontmatter data
+    assert "properties" in data
+    assert isinstance(data["properties"], dict)
+    assert "title" in data["properties"]
+    assert data["properties"]["title"] == "Simple Direct Markdown"

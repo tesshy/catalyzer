@@ -87,6 +87,9 @@ This is markdown content sent directly via text/markdown.
     assert data["author"] == "direct@example.com"
     assert data["tags"] == ["direct", "test"]
     assert data["content"].startswith("# Direct Upload")
+    assert "properties" in data
+    # The properties field should contain the frontmatter
+    assert isinstance(data["properties"], dict)
 
 
 def test_upload_invalid_direct_markdown(client):
