@@ -91,33 +91,14 @@ async def search_catalogs(
 @router.post("/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
 async def upload_markdown(
     request: Request,
-    file: UploadFile = File(None),
     catalog_service: CatalogService = Depends(),
 ):
-    """Create a new catalog entry from a Markdown file upload or direct text/markdown content."""
+    """Create a new catalog entry from direct text/markdown content."""
     markdown_content = None
     filename = "document.md"
     
-    # Handle file upload
-    if file:
-        if not file.filename.endswith((".md", ".markdown")):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only Markdown files are accepted",
-            )
-            
-        filename = file.filename
-        content = await file.read()
-        try:
-            markdown_content = content.decode("utf-8")
-        except UnicodeDecodeError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Markdown file must be UTF-8 encoded",
-            )
-    
     # Handle direct text/markdown content
-    elif request.headers.get("content-type") == "text/markdown":
+    if request.headers.get("content-type") == "text/markdown":
         content = await request.body()
         try:
             markdown_content = content.decode("utf-8")
@@ -127,11 +108,59 @@ async def upload_markdown(
                 detail="Markdown content must be UTF-8 encoded",
             )
     
-    # Neither file nor text/markdown content provided
+    # Content-Type is not text/markdown
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Content-Type must be text/markdown when not using multipart/form-data",
+            detail="Content-Type must be text/markdown",
+        )
+    
+    # Process the markdown content
+    try:
+        # Extract YAML frontmatter using regex
+        pattern = r"^---\s*\n(.*?)\n---\s*\n(.*)$"
+        match = re.match(pattern, markdown_content, re.DOTALL)
+        
+        if not match:
+            raise ValueError("Invalid markdown format: Missing frontmatter")
+        
+        frontmatter_str, main_content = match.groups()
+        
+        # Parse YAML frontmatter
+        try:
+            frontmatter = yaml.safe_load(frontmatter_str)
+            if not isinstance(frontmatter, dict):
+                raise ValueError("Frontmatter is not a dictionary")
+        except Exception as e:
+            raise ValueError(f"Failed to parse frontmatter: {str(e)}")
+        
+        # Create a new catalog directly
+        now = datetime.now()
+        
+        # Create catalog data
+        catalog = CatalogCreate(
+            title=frontmatter.get("title", filename),
+            author=frontmatter.get("author", ""),
+            url=HttpUrl(frontmatter.get("url", "https://example.com/")),
+            tags=frontmatter.get("tags", []),
+            locations=[HttpUrl(location) for location in frontmatter.get("locations", [])],
+            content=main_content,
+            created_at=frontmatter.get("created_at", now),
+            updated_at=frontmatter.get("updated_at", now),
+        )
+        
+        # Create the catalog
+        return catalog_service.create_catalog(catalog)
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse markdown: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create catalog: {str(e)}",
         )
     
     # Process the markdown content
