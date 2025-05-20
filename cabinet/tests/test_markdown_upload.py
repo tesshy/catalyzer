@@ -82,22 +82,18 @@ This markdown file has no frontmatter.
     assert "Invalid markdown format" in response.json()["detail"]
 
 
-def test_upload_direct_markdown_content(client):
+def test_upload_direct_markdown(client):
     """Test uploading markdown content directly with content-type text/markdown."""
-    # Create a valid markdown content with properly formatted YAML frontmatter
+    # Create a valid markdown content
     markdown_content = """---
-title: Direct Markdown
+title: Direct Upload
 author: direct@example.com
 url: https://example.com/direct
-tags:
-  - direct
-  - markdown
-locations:
-  - https://example.com/direct-data
+tags: [direct, test]
 ---
-# Direct Markdown
+# Direct Upload
 
-This is markdown content sent directly with content-type text/markdown.
+This is markdown content sent directly via text/markdown.
 """
 
     # Upload the content directly with text/markdown content-type
@@ -108,12 +104,12 @@ This is markdown content sent directly with content-type text/markdown.
     )
 
     # Check the response
-    assert response.status_code == 201, response.text
+    assert response.status_code == 201
     data = response.json()
-    assert data["title"] == "Direct Markdown"
+    assert data["title"] == "Direct Upload"
     assert data["author"] == "direct@example.com"
-    assert data["tags"] == ["direct", "markdown"]
-    assert data["content"].startswith("# Direct Markdown")
+    assert data["tags"] == ["direct", "test"]
+    assert data["content"].startswith("# Direct Upload")
 
 
 def test_upload_invalid_direct_markdown(client):

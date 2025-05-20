@@ -95,50 +95,89 @@ async def upload_markdown(
     catalog_service: CatalogService = Depends(),
 ):
     """Create a new catalog entry from a Markdown file upload or direct text/markdown content."""
-    content_str = None
-    filename = None
+    markdown_content = None
+    filename = "document.md"
     
+    # Handle file upload
     if file:
-        # Handle multipart/form-data upload
         if not file.filename.endswith((".md", ".markdown")):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Only Markdown files are accepted",
             )
-        
-        # Read the markdown file content
-        content = await file.read()
+            
         filename = file.filename
+        content = await file.read()
         try:
-            content_str = content.decode("utf-8")
+            markdown_content = content.decode("utf-8")
         except UnicodeDecodeError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Markdown file must be UTF-8 encoded",
             )
-    else:
-        # Handle direct text/markdown content
-        if request.headers.get("content-type") != "text/markdown":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Content-Type must be text/markdown when not using multipart/form-data",
-            )
-        
+    
+    # Handle direct text/markdown content
+    elif request.headers.get("content-type") == "text/markdown":
         content = await request.body()
         try:
-            content_str = content.decode("utf-8")
-            filename = "document.md"  # Default filename when not provided
+            markdown_content = content.decode("utf-8")
         except UnicodeDecodeError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Markdown content must be UTF-8 encoded",
             )
     
-    # Parse and create catalog using the service
+    # Neither file nor text/markdown content provided
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Content-Type must be text/markdown when not using multipart/form-data",
+        )
+    
+    # Process the markdown content
     try:
-        return catalog_service.create_catalog_from_markdown(content_str, filename)
+        # Extract YAML frontmatter using regex
+        pattern = r"^---\s*\n(.*?)\n---\s*\n(.*)$"
+        match = re.match(pattern, markdown_content, re.DOTALL)
+        
+        if not match:
+            raise ValueError("Invalid markdown format: Missing frontmatter")
+        
+        frontmatter_str, main_content = match.groups()
+        
+        # Parse YAML frontmatter
+        try:
+            frontmatter = yaml.safe_load(frontmatter_str)
+            if not isinstance(frontmatter, dict):
+                raise ValueError("Frontmatter is not a dictionary")
+        except Exception as e:
+            raise ValueError(f"Failed to parse frontmatter: {str(e)}")
+        
+        # Create a new catalog directly
+        now = datetime.now()
+        
+        # Create catalog data
+        catalog = CatalogCreate(
+            title=frontmatter.get("title", filename),
+            author=frontmatter.get("author", ""),
+            url=HttpUrl(frontmatter.get("url", "https://example.com/")),
+            tags=frontmatter.get("tags", []),
+            locations=[HttpUrl(location) for location in frontmatter.get("locations", [])],
+            content=main_content,
+            created_at=frontmatter.get("created_at", now),
+            updated_at=frontmatter.get("updated_at", now),
+        )
+        
+        # Create the catalog
+        return catalog_service.create_catalog(catalog)
+        
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse markdown: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create catalog: {str(e)}",
         )

@@ -97,6 +97,11 @@ updated_at: 2025-05-20T12:34:56Z # Last update date (optional)
 This data is...
 ```
 
+You can provide the Markdown content in one of two ways:
+
+1. As a multipart/form-data upload with a file field
+2. By sending the Markdown content directly with Content-Type: text/markdown
+
 The endpoint will parse the frontmatter metadata and create a catalog entry with the appropriate fields.
 
 ## Database Structure
