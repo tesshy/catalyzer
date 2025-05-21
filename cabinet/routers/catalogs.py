@@ -2,12 +2,15 @@
 
 import re
 import yaml
+import io
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, UploadFile, File, Form
 from pydantic import HttpUrl
+
+from markitdown import MarkItDown
 
 from ..models import Catalog, CatalogCreate, CatalogUpdate, SearchQuery
 from ..services.catalog_service import CatalogService
@@ -164,4 +167,57 @@ async def delete_catalog(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Catalog with ID {catalog_id} not found",
+        )
+
+
+@router.get("/", response_model=str)
+async def generate_markdown_from_url(
+    url: str = Query(..., description="URL to fetch content from"),
+):
+    """Generate a markdown catalog file from a URL.
+    
+    Uses markitdown to convert web content to markdown with front matter.
+    
+    Args:
+        url: The URL to fetch and convert
+        
+    Returns:
+        Markdown content with front matter
+    
+    Raises:
+        HTTPException: If the URL is invalid or content cannot be converted
+    """
+    try:
+        # Create a markitdown instance
+        markitdown = MarkItDown()
+        
+        # Convert the URL to markdown
+        result = markitdown.convert_url(url)
+        
+        # Extract title from the result or use URL as fallback
+        title = result.title or url.split("/")[-1] or "Untitled"
+        
+        # Create front matter with required fields
+        front_matter = {
+            "title": title,
+            "author": "",
+            "url": url,
+            "tags": [],
+            "locations": [url],
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        
+        # Format the front matter as YAML
+        front_matter_yaml = yaml.dump(front_matter, default_flow_style=False)
+        
+        # Combine front matter and markdown content
+        markdown_with_front_matter = f"---\n{front_matter_yaml}---\n\n{result.markdown}"
+        
+        return markdown_with_front_matter
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to generate markdown from URL: {str(e)}",
         )
