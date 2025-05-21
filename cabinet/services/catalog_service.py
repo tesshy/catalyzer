@@ -20,8 +20,16 @@ class CatalogService:
         """Initialize the catalog service."""
         self.db = db
 
+    def _ensure_connection(self):
+        """Ensure the database connection is open."""
+        try:
+            self.db.conn.execute("SELECT 1")
+        except Exception:
+            self.db.connect()
+
     def create_catalog(self, catalog: CatalogCreate, group_name: str = "default", user_name: str = "cabinet") -> Catalog:
         """Create a new catalog entry."""
+        self._ensure_connection()
         catalog_dict = catalog.model_dump()
         
         # Ensure datetime objects are set
@@ -51,45 +59,28 @@ class CatalogService:
         # Convert back to the Catalog model
         return Catalog(**result)
     
-    def create_catalog_from_markdown(self, markdown_content: str, filename: str = None) -> Catalog:
-        """Create a new catalog entry from a markdown file content.
-        
-        Args:
-            markdown_content: The content of the markdown file
-            filename: Optional filename to use as a fallback for missing title
-            
-        Returns:
-            The created catalog
-        """
-        try:
-            # Extract frontmatter and content
-            frontmatter, content = extract_frontmatter(markdown_content)
-            
-            # Prepare catalog data with proper types
-            catalog_data = {
-                "title": frontmatter.get("title", filename or "Untitled"),
-                "author": frontmatter.get("author", ""),
-                "url": HttpUrl(frontmatter.get("url", "https://example.com/")),
-                "tags": frontmatter.get("tags", []),
-                "locations": [HttpUrl(loc) for loc in frontmatter.get("locations", [])],
-                "markdown": content,
-                "properties": frontmatter,
-            }
-            
-            # Add optional timestamp fields if present
-            if "created_at" in frontmatter:
-                catalog_data["created_at"] = frontmatter["created_at"]
-            if "updated_at" in frontmatter:
-                catalog_data["updated_at"] = frontmatter["updated_at"]
-            
-            # Create catalog
-            catalog = CatalogCreate(**catalog_data)
-            return self.create_catalog(catalog)
-        except Exception as e:
-            raise ValueError(f"Failed to create catalog from markdown: {str(e)}")
+    def create_catalog_from_markdown(self, markdown_content: str, filename: str = None, group_name: str = "default", user_name: str = "cabinet") -> Catalog:
+        """Create a new catalog entry from markdown content."""
+        self._ensure_connection()
+        frontmatter, main_content = extract_frontmatter(markdown_content)
+
+        catalog_data = {
+            "title": frontmatter.get("title", filename or "Untitled"),
+            "author": frontmatter.get("author", ""),
+            "url": frontmatter.get("url", "https://example.com/"),
+            "tags": frontmatter.get("tags", []),
+            "locations": frontmatter.get("locations", []),
+            "markdown": main_content,
+            "properties": frontmatter,
+            "created_at": frontmatter.get("created_at", datetime.utcnow()),
+            "updated_at": frontmatter.get("updated_at", datetime.utcnow()),
+        }
+
+        return self.create_catalog(CatalogCreate(**catalog_data), group_name, user_name)
 
     def get_catalog(self, catalog_id: UUID, group_name: str = "default", user_name: str = "cabinet") -> Optional[Catalog]:
         """Get a catalog entry by ID."""
+        self._ensure_connection()
         # Set group and table name in the db
         self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
         self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
@@ -111,6 +102,7 @@ class CatalogService:
 
     def update_catalog(self, catalog_id: UUID, catalog_update: CatalogUpdate, group_name: str = "default", user_name: str = "cabinet") -> Optional[Catalog]:
         """Update a catalog entry."""
+        self._ensure_connection()
         # Set group and table name in the db
         self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
         self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
@@ -148,6 +140,7 @@ class CatalogService:
 
     def delete_catalog(self, catalog_id: UUID, group_name: str = "default", user_name: str = "cabinet") -> bool:
         """Delete a catalog entry."""
+        self._ensure_connection()
         # Set group and table name in the db
         self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
         self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
@@ -157,6 +150,7 @@ class CatalogService:
 
     def search_catalogs(self, tags: Optional[List[str]] = None, query: Optional[str] = None, group_name: str = "default", user_name: str = "cabinet") -> List[Catalog]:
         """Search catalogs by tags and/or full-text search."""
+        self._ensure_connection()
         # Set group and table name in the db
         self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
         self.db.conn.execute(f"SET search_path TO \"{group_name}\"")

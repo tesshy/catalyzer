@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any
 
 import duckdb
 from fastapi import Depends
+from fastapi import Path
 
 # Default database path if not specified
 DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "data")
@@ -21,12 +22,11 @@ def get_db_connection(
 ):
     """Get a DuckDB connection for the specified group."""
     # Check if MotherDuck token exists
-    motherduck_token = os.environ.get("MOTHERDUCK_TOKEN")
+    motherduck_token = os.environ.get("motherduck_token")
     
     if motherduck_token:
-        # Connect to MotherDuck
-        conn = duckdb.connect(f"md:{group_name}")
-        # Note: MotherDuck authentication is handled by the MOTHERDUCK_TOKEN environment variable
+        conn = duckdb.connect(f"md:?motherduck_token={motherduck_token}")
+        conn.execute(f"CREATE DATABASE IF NOT EXISTS\"{group_name}\"")
     else:
         # Fall back to local database
         # Create data directory if it doesn't exist
@@ -37,16 +37,17 @@ def get_db_connection(
         conn = duckdb.connect(db_file_path)
     
     # Use the specified group (database) if not default
-    if group_name != "default":
-        conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
-        conn.execute(f"SET search_path TO \"{group_name}\"")
+    # if group_name != "default":
+    conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
+    conn.execute(f"SET search_path TO \"{group_name}\"")
     
     # Create the table if it doesn't exist
     create_table(conn, user_name)
-    
+
     try:
         yield conn
     finally:
+        print("Closing connection")
         conn.close()
 
 
@@ -68,27 +69,35 @@ def create_table(conn: duckdb.DuckDBPyConnection, table_name: str = "cabinet"):
     """)
 
 
-def get_db():
-    """Get a database connection for dependency injection."""
-    # Always use in-memory database for testing, regardless of MotherDuck token availability
-    conn = duckdb.connect(":memory:")  # Using in-memory database for testing
-    create_table(conn, "cabinet")  # Create the table with correct schema
-    yield conn
-    conn.close()
-
-
 class CabinetDB:
     """Cabinet database operations."""
 
-    def __init__(self, conn: duckdb.DuckDBPyConnection = Depends(get_db), table_name: str = "cabinet"):
+    def __init__(
+        self,
+        conn: duckdb.DuckDBPyConnection = Depends(lambda group_name=Path(...), user_name=Path(...): next(get_db_connection(group_name, user_name))),
+        table_name: str = Depends(lambda user_name=Path(...): user_name),
+        db_path: str = DEFAULT_DB_PATH,
+        db_file: str = DEFAULT_DB_FILE
+    ):
         """Initialize the CabinetDB with a connection."""
         self.conn = conn
         self.table_name = table_name
 
+    def connect(self):
+        """Connect or reconnect to the DuckDB database."""
+        if self.conn:
+            self.conn.close()
+
+    def close(self):
+        """Close the DuckDB connection."""
+        if self.conn:
+            self.conn.close()
+            self.conn = None
+
     def create_catalog(self, catalog_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new catalog entry."""
         catalog_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now()
         
         # Set created_at and updated_at if not provided
         catalog_data["id"] = catalog_id
