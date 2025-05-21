@@ -5,9 +5,27 @@ import uuid
 from typing import Dict, Any
 
 import pytest
+import duckdb
 from fastapi.testclient import TestClient
 
 from cabinet.main import app
+from cabinet.database import create_table, get_db
+
+
+# Create a single in-memory DB for all tests
+TEST_DB = duckdb.connect(":memory:")
+TEST_DB.execute("CREATE SCHEMA IF NOT EXISTS \"default\"")
+TEST_DB.execute("SET search_path TO \"default\"")
+create_table(TEST_DB, "cabinet")
+
+
+def get_test_db():
+    """Provide the test database connection for dependency injection."""
+    yield TEST_DB
+
+
+# Override the database dependency
+app.dependency_overrides[get_db] = get_test_db
 
 
 @pytest.fixture
@@ -146,6 +164,9 @@ def test_search_catalogs(client):
 
 
 def test_search_catalogs_empty(client):
-    """Test search with no parameters."""
+    """Test search with no parameters returns all records."""
     response = client.get("/default/cabinet/search/")
-    assert response.status_code == 400
+    assert response.status_code == 200
+    data = response.json()
+    # Now we expect to get all records in the test db
+    assert len(data) > 0

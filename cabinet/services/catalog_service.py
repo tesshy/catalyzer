@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from pydantic import HttpUrl
 
-from ..database import CabinetDB
+from ..database import CabinetDB, create_table
 from ..models import Catalog, CatalogCreate, CatalogUpdate
 from ..tools.import_catalog import extract_frontmatter
 
@@ -22,7 +22,7 @@ class CatalogService:
 
     def create_catalog(self, catalog: CatalogCreate, group_name: str = "default", user_name: str = "cabinet") -> Catalog:
         """Create a new catalog entry."""
-        catalog_dict = catalog.dict()
+        catalog_dict = catalog.model_dump()
         
         # Ensure datetime objects are set
         now = datetime.utcnow()
@@ -34,8 +34,8 @@ class CatalogService:
         catalog_dict["locations"] = [str(loc) for loc in catalog_dict["locations"]]
         
         # Set group and table name in the db
-        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
-        self.db.conn.execute(f"SET search_path TO {group_name}")
+        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
+        self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
         self.db.table_name = user_name
         
         # Create the table if it doesn't exist with the user_name
@@ -91,8 +91,8 @@ class CatalogService:
     def get_catalog(self, catalog_id: UUID, group_name: str = "default", user_name: str = "cabinet") -> Optional[Catalog]:
         """Get a catalog entry by ID."""
         # Set group and table name in the db
-        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
-        self.db.conn.execute(f"SET search_path TO {group_name}")
+        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
+        self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
         self.db.table_name = user_name
         
         result = self.db.get_catalog_by_id(str(catalog_id))
@@ -112,8 +112,8 @@ class CatalogService:
     def update_catalog(self, catalog_id: UUID, catalog_update: CatalogUpdate, group_name: str = "default", user_name: str = "cabinet") -> Optional[Catalog]:
         """Update a catalog entry."""
         # Set group and table name in the db
-        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
-        self.db.conn.execute(f"SET search_path TO {group_name}")
+        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
+        self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
         self.db.table_name = user_name
         
         # First, check if the catalog exists
@@ -122,7 +122,7 @@ class CatalogService:
             return None
             
         # Update only the provided fields
-        update_data = catalog_update.dict(exclude_unset=True)
+        update_data = catalog_update.model_dump(exclude_unset=True)
         
         # Convert URLs to strings for database storage
         if "url" in update_data and update_data["url"]:
@@ -149,8 +149,8 @@ class CatalogService:
     def delete_catalog(self, catalog_id: UUID, group_name: str = "default", user_name: str = "cabinet") -> bool:
         """Delete a catalog entry."""
         # Set group and table name in the db
-        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
-        self.db.conn.execute(f"SET search_path TO {group_name}")
+        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
+        self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
         self.db.table_name = user_name
         
         return self.db.delete_catalog(str(catalog_id))
@@ -158,8 +158,8 @@ class CatalogService:
     def search_catalogs(self, tags: Optional[List[str]] = None, query: Optional[str] = None, group_name: str = "default", user_name: str = "cabinet") -> List[Catalog]:
         """Search catalogs by tags and/or full-text search."""
         # Set group and table name in the db
-        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
-        self.db.conn.execute(f"SET search_path TO {group_name}")
+        self.db.conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
+        self.db.conn.execute(f"SET search_path TO \"{group_name}\"")
         self.db.table_name = user_name
         
         results = self.db.search_catalogs(tags, query)

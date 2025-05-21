@@ -28,7 +28,7 @@ This is a simple markdown file.
 
     # Upload the content directly with text/markdown content-type
     response = client.post(
-        "/catalogs/new",
+        "/default/cabinet/new",
         content=markdown_content.encode("utf-8"),
         headers={"Content-Type": "text/markdown"}
     )
@@ -38,9 +38,9 @@ This is a simple markdown file.
     data = response.json()
     assert data["title"] == "Simple Direct Markdown"
     assert data["author"] == "simple@example.com"
-    assert data["content"].startswith("# Simple Content")
+    assert data["markdown"].startswith("# Simple Content")
     
-    # Check that the properties field contains the frontmatter data
+    # Check the properties field contains the frontmatter data
     assert "properties" in data
     assert isinstance(data["properties"], dict)
     assert "title" in data["properties"]

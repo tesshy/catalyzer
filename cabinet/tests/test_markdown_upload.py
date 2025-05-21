@@ -49,7 +49,7 @@ def test_non_markdown_content_type(client):
     """Test uploading with non-markdown content type."""
     # Try uploading with incorrect content-type
     response = client.post(
-        "/catalogs/new",
+        "/default/cabinet/new",
         content="Some plain text",
         headers={"Content-Type": "text/plain"}
     )
@@ -75,7 +75,7 @@ This is markdown content sent directly via text/markdown.
 
     # Upload the content directly with text/markdown content-type
     response = client.post(
-        "/catalogs/new",
+        "/default/cabinet/new",
         content=markdown_content.encode("utf-8"),
         headers={"Content-Type": "text/markdown"}
     )
@@ -86,7 +86,7 @@ This is markdown content sent directly via text/markdown.
     assert data["title"] == "Direct Upload"
     assert data["author"] == "direct@example.com"
     assert data["tags"] == ["direct", "test"]
-    assert data["content"].startswith("# Direct Upload")
+    assert data["markdown"].startswith("# Direct Upload")
     assert "properties" in data
     # The properties field should contain the frontmatter
     assert isinstance(data["properties"], dict)
@@ -102,7 +102,7 @@ This markdown content has no frontmatter and is sent directly.
 
     # Upload the content directly with text/markdown content-type
     response = client.post(
-        "/catalogs/new",
+        "/default/cabinet/new",
         content=markdown_content.encode("utf-8"),
         headers={"Content-Type": "text/markdown"}
     )

@@ -29,7 +29,7 @@ This is a test markdown file.
 
     # Attempt to upload the file
     response = client.post(
-        "/catalogs/new",
+        "/default/cabinet/new",
         files={"file": ("test.md", file, "text/markdown")},
     )
 

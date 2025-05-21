@@ -29,8 +29,8 @@ def get_db_connection(
     
     # Use the specified group (database) if not default
     if group_name != "default":
-        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
-        conn.execute(f"SET search_path TO {group_name}")
+        conn.execute(f"CREATE SCHEMA IF NOT EXISTS \"{group_name}\"")
+        conn.execute(f"SET search_path TO \"{group_name}\"")
     
     # Create the table if it doesn't exist
     create_table(conn, user_name)
@@ -44,7 +44,7 @@ def get_db_connection(
 def create_table(conn: duckdb.DuckDBPyConnection, table_name: str = "cabinet"):
     """Create the cabinet table if it doesn't exist."""
     conn.execute(f"""
-    CREATE TABLE IF NOT EXISTS {table_name} (
+    CREATE TABLE IF NOT EXISTS "{table_name}" (
         id UUID PRIMARY KEY,
         title VARCHAR,
         author VARCHAR,
@@ -88,7 +88,7 @@ class CabinetDB:
         columns = ", ".join(catalog_data.keys())
         placeholders = ", ".join(["?" for _ in catalog_data.keys()])
         
-        query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+        query = f"INSERT INTO \"{self.table_name}\" ({columns}) VALUES ({placeholders}) RETURNING *"
         result = self.conn.execute(query, list(catalog_data.values())).fetchone()
         
         # Get the column names from the result
@@ -98,7 +98,7 @@ class CabinetDB:
     def get_catalog_by_id(self, catalog_id: str) -> Optional[Dict[str, Any]]:
         """Get a catalog entry by ID."""
         result = self.conn.execute(
-            f"SELECT * FROM {self.table_name} WHERE id = ?", [catalog_id]
+            f"SELECT * FROM \"{self.table_name}\" WHERE id = ?", [catalog_id]
         ).fetchone()
         
         if not result:
@@ -118,7 +118,7 @@ class CabinetDB:
         values.append(catalog_id)
         
         # Update the record
-        query = f"UPDATE {self.table_name} SET {set_clause} WHERE id = ? RETURNING *"
+        query = f"UPDATE \"{self.table_name}\" SET {set_clause} WHERE id = ? RETURNING *"
         result = self.conn.execute(query, values).fetchone()
         
         if not result:
@@ -130,7 +130,7 @@ class CabinetDB:
     def delete_catalog(self, catalog_id: str) -> bool:
         """Delete a catalog entry."""
         result = self.conn.execute(
-            f"DELETE FROM {self.table_name} WHERE id = ? RETURNING id", [catalog_id]
+            f"DELETE FROM \"{self.table_name}\" WHERE id = ? RETURNING id", [catalog_id]
         ).fetchone()
         
         return bool(result)
@@ -156,9 +156,9 @@ class CabinetDB:
         # Construct the final query
         if where_clauses:
             where_clause = " AND ".join(where_clauses)
-            sql_query = f"SELECT * FROM {self.table_name} WHERE {where_clause}"
+            sql_query = f"SELECT * FROM \"{self.table_name}\" WHERE {where_clause}"
         else:
-            sql_query = f"SELECT * FROM {self.table_name}"
+            sql_query = f"SELECT * FROM \"{self.table_name}\""
         
         # Execute the query
         results = self.conn.execute(sql_query, params).fetchall()

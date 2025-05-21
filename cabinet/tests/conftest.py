@@ -11,8 +11,10 @@ def setup_test_db():
     # Use an in-memory database for testing
     conn = duckdb.connect(":memory:")
     
-    # Create the test table
-    create_table(conn)
+    # Create the schema and test table
+    conn.execute("CREATE SCHEMA IF NOT EXISTS \"default\"")
+    conn.execute("SET search_path TO \"default\"")
+    create_table(conn, "cabinet")
     
     yield conn
     
