@@ -65,21 +65,21 @@ This data is...
 
 ### Catalog Management
 
-- `POST /catalogs/` - Create a new catalog
-- `POST /catalogs/new` - Create a new catalog from a Markdown file upload
-- `GET /catalogs/{catalog_id}` - Get a catalog by ID
-- `PUT /catalogs/{catalog_id}` - Update a catalog
-- `DELETE /catalogs/{catalog_id}` - Delete a catalog
+- `POST /{group_name}/{user_name}/` - Create a new catalog
+- `POST /{group_name}/{user_name}/new` - Create a new catalog from a Markdown file upload
+- `GET /{group_name}/{user_name}/{catalog_id}` - Get a catalog by ID
+- `PUT /{group_name}/{user_name}/{catalog_id}` - Update a catalog
+- `DELETE /{group_name}/{user_name}/{catalog_id}` - Delete a catalog
 
 ### Search
 
-- `GET /catalogs/search/?tag=tag1,tag2` - Search by tags
-- `GET /catalogs/search/?q=searchterm` - Full-text search
-- `GET /catalogs/search/?tag=tag1&q=searchterm` - Combined search
+- `GET /{group_name}/{user_name}/search/?tag=tag1,tag2` - Search by tags
+- `GET /{group_name}/{user_name}/search/?q=searchterm` - Full-text search
+- `GET /{group_name}/{user_name}/search/?tag=tag1&q=searchterm` - Combined search
 
 ### Markdown File Upload
 
-You can upload Markdown files directly to create new catalog entries using the `/catalogs/new` endpoint.
+You can upload Markdown files directly to create new catalog entries using the `/{group_name}/{user_name}/new` endpoint.
 The Markdown file should include YAML frontmatter with the following metadata fields:
 
 ```markdown
@@ -97,6 +97,8 @@ updated_at: 2025-05-20T12:34:56Z # Last update date (optional)
 This data is...
 ```
 
+The content after the frontmatter will be stored in the `markdown` field.
+
 You can provide the Markdown content in one of two ways:
 
 1. As a multipart/form-data upload with a file field
@@ -108,14 +110,14 @@ The endpoint will parse the frontmatter metadata and create a catalog entry with
 
 DuckDB is used with the following structure:
 
-- **Database**: Corresponds to a Group (e.g., department)
-- **Table**: Corresponds to a User (e.g., UUID)
+- **Database/Schema**: `{group_name}` - Corresponds to a Group (e.g., department)
+- **Table**: `{user_name}` - Corresponds to a User (e.g., UUID)
 - **Record**: Corresponds to a Markdown catalog file
 
 ### Table Definition
 
 ```sql
-CREATE TABLE IF NOT EXISTS cabinet (
+CREATE TABLE IF NOT EXISTS {user_name} (
     id UUID PRIMARY KEY,
     title VARCHAR,
     author VARCHAR,
@@ -124,7 +126,7 @@ CREATE TABLE IF NOT EXISTS cabinet (
     locations VARCHAR[],
     created_at TIMESTAMP,
     updated_at TIMESTAMP,
-    content VARCHAR,
+    markdown VARCHAR,
     properties JSON
 );
 ```

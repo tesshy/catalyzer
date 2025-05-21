@@ -10,7 +10,7 @@ A backend service for managing catalog entries using markdown files. The Cabinet
 
 - CRUD operations for catalog markdown files
 - Search functionality (tag-based and full-text search)
-- DuckDB-based storage
+- DuckDB-based storage with flexible path structure (/{group_name}/{user_name})
 
 [Learn more about Catalyzer::Cabinet](./cabinet/README.md)
 
