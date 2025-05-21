@@ -1,1 +1,0 @@
-"""Services for Catalyzer::Cabinet."""

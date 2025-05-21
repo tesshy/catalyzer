@@ -41,7 +41,7 @@ To use MotherDuck cloud database:
 
 ```bash
 # Set your MotherDuck token as environment variable
-export MOTHERDUCK_TOKEN='your_motherduck_token'
+export motherduck_token='your_motherduck_token'
 
 # Start the FastAPI server
 uvicorn cabinet.main:app --reload
