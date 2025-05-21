@@ -41,13 +41,25 @@ def test_create_catalog(client):
     assert "created_at" in data
     assert "updated_at" in data
     
+    # Return data for other tests to use
     return data
 
 
 def test_get_catalog(client):
     """Test getting a catalog entry."""
     # First, create a catalog entry
-    created = test_create_catalog(client)
+    catalog_data = {
+        "title": "Test Catalog for Get",
+        "author": "get@example.com",
+        "url": "https://example.com/catalog-get",
+        "tags": ["get", "example"],
+        "locations": ["https://example.com/data-get"],
+        "content": "This is a test catalog for get.",
+    }
+    
+    create_response = client.post("/catalogs/", json=catalog_data)
+    assert create_response.status_code == 201
+    created = create_response.json()
     
     # Now get it
     response = client.get(f"/catalogs/{created['id']}")
@@ -61,7 +73,18 @@ def test_get_catalog(client):
 def test_update_catalog(client):
     """Test updating a catalog entry."""
     # First, create a catalog entry
-    created = test_create_catalog(client)
+    catalog_data = {
+        "title": "Test Catalog for Update",
+        "author": "update@example.com",
+        "url": "https://example.com/catalog-update",
+        "tags": ["update", "example"],
+        "locations": ["https://example.com/data-update"],
+        "content": "This is a test catalog for update.",
+    }
+    
+    create_response = client.post("/catalogs/", json=catalog_data)
+    assert create_response.status_code == 201
+    created = create_response.json()
     
     # Now update it
     update_data = {
@@ -81,15 +104,26 @@ def test_update_catalog(client):
 def test_delete_catalog(client):
     """Test deleting a catalog entry."""
     # First, create a catalog entry
-    created = test_create_catalog(client)
+    catalog_data = {
+        "title": "Test Catalog for Delete",
+        "author": "delete@example.com",
+        "url": "https://example.com/catalog-delete",
+        "tags": ["delete", "example"],
+        "locations": ["https://example.com/data-delete"],
+        "content": "This is a test catalog for delete.",
+    }
+    
+    create_response = client.post("/catalogs/", json=catalog_data)
+    assert create_response.status_code == 201
+    created = create_response.json()
     
     # Now delete it
     response = client.delete(f"/catalogs/{created['id']}")
     assert response.status_code == 204
     
     # Verify it's gone
-    response = client.get(f"/catalogs/{created['id']}")
-    assert response.status_code == 404
+    get_response = client.get(f"/catalogs/{created['id']}")
+    assert get_response.status_code == 404
 
 
 def test_search_catalogs(client):

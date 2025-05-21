@@ -1,19 +1,23 @@
 """Pytest configuration for Cabinet tests."""
 
 import pytest
-import duckdb
-from cabinet.database import create_table
+from fastapi.testclient import TestClient
+
+from ..main import app
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_db():
-    """Set up and tear down a test database for all tests."""
-    # Use an in-memory database for testing
-    conn = duckdb.connect(":memory:")
+@pytest.fixture
+def client():
+    """Get a test client for the FastAPI app."""
+    return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def cleanup_database():
+    """Clean up the database after each test."""
+    from ..database import DB_CONNECTION
     
-    # Create the test table
-    create_table(conn)
+    yield
     
-    yield conn
-    
-    conn.close()
+    # Clean up the database after each test
+    DB_CONNECTION.execute("DELETE FROM cabinet")

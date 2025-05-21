@@ -2,43 +2,15 @@
 
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
 import duckdb
 from fastapi import Depends
 
-# Default database path if not specified
-DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "data")
-DEFAULT_DB_FILE = "cabinet.duckdb"
 
-
-def get_db_connection(
-    group: str = "default",
-    db_path: str = DEFAULT_DB_PATH,
-    db_file: str = DEFAULT_DB_FILE,
-):
-    """Get a DuckDB connection for the specified group."""
-    # Create data directory if it doesn't exist
-    os.makedirs(db_path, exist_ok=True)
-    
-    # Connect to the database
-    db_file_path = os.path.join(db_path, db_file)
-    conn = duckdb.connect(db_file_path)
-    
-    # Use the specified group (database) if not default
-    if group != "default":
-        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group}")
-        conn.execute(f"SET search_path TO {group}")
-    
-    # Create the table if it doesn't exist
-    create_table(conn)
-    
-    try:
-        yield conn
-    finally:
-        conn.close()
-
+# Use a single in-memory database connection
+DB_CONNECTION = duckdb.connect(":memory:")
 
 def create_table(conn: duckdb.DuckDBPyConnection):
     """Create the cabinet table if it doesn't exist."""
@@ -58,12 +30,13 @@ def create_table(conn: duckdb.DuckDBPyConnection):
     """)
 
 
+# Initialize the table
+create_table(DB_CONNECTION)
+
+
 def get_db():
     """Get a database connection for dependency injection."""
-    conn = duckdb.connect(":memory:")  # Using in-memory database for testing
-    create_table(conn)  # Create the table with correct schema
-    yield conn
-    conn.close()
+    yield DB_CONNECTION
 
 
 class CabinetDB:
@@ -76,7 +49,7 @@ class CabinetDB:
     def create_catalog(self, catalog_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new catalog entry."""
         catalog_id = str(uuid.uuid4())
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         
         # Set created_at and updated_at if not provided
         catalog_data["id"] = catalog_id
@@ -108,7 +81,7 @@ class CabinetDB:
     def update_catalog(self, catalog_id: str, catalog_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a catalog entry."""
         # Update the updated_at timestamp
-        catalog_data["updated_at"] = datetime.utcnow()
+        catalog_data["updated_at"] = datetime.now(timezone.utc)
         
         # Build the SET clause
         set_clause = ", ".join([f"{key} = ?" for key in catalog_data.keys()])

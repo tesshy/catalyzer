@@ -1,7 +1,7 @@
 """Catalog service for Catalyzer::Cabinet."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from uuid import UUID
 
@@ -22,10 +22,10 @@ class CatalogService:
 
     def create_catalog(self, catalog: CatalogCreate) -> Catalog:
         """Create a new catalog entry."""
-        catalog_dict = catalog.dict()
+        catalog_dict = catalog.model_dump()
         
         # Ensure datetime objects are set
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         catalog_dict["created_at"] = catalog_dict.get("created_at") or now
         catalog_dict["updated_at"] = catalog_dict.get("updated_at") or now
         
@@ -104,7 +104,7 @@ class CatalogService:
             return None
             
         # Update only the provided fields
-        update_data = catalog_update.dict(exclude_unset=True)
+        update_data = catalog_update.model_dump(exclude_unset=True)
         
         # Convert URLs to strings for database storage
         if "url" in update_data and update_data["url"]:
