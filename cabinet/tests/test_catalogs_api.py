@@ -24,7 +24,7 @@ def test_create_catalog(client):
         "url": "https://example.com/catalog",
         "tags": ["test", "example"],
         "locations": ["https://example.com/data"],
-        "content": "This is a test catalog.",
+        "markdown": "This is a test catalog.",
     }
     
     response = client.post("/catalogs/", json=catalog_data)
@@ -36,7 +36,7 @@ def test_create_catalog(client):
     assert data["url"] == "https://example.com/catalog"
     assert data["tags"] == ["test", "example"]
     assert data["locations"] == ["https://example.com/data"]
-    assert data["content"] == "This is a test catalog."
+    assert data["markdown"] == "This is a test catalog."
     assert "id" in data
     assert "created_at" in data
     assert "updated_at" in data
@@ -101,7 +101,7 @@ def test_search_catalogs(client):
         "url": "https://example.com/catalog1",
         "tags": ["python", "data"],
         "locations": ["https://example.com/data1"],
-        "content": "This is Python data.",
+        "markdown": "This is Python data.",
     }
     response1 = client.post("/catalogs/", json=catalog1)
     assert response1.status_code == 201
@@ -112,7 +112,7 @@ def test_search_catalogs(client):
         "url": "https://example.com/catalog2",
         "tags": ["javascript", "code"],
         "locations": ["https://example.com/data2"],
-        "content": "This is JavaScript code.",
+        "markdown": "This is JavaScript code.",
     }
     response2 = client.post("/catalogs/", json=catalog2)
     assert response2.status_code == 201

@@ -52,7 +52,7 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
         locations VARCHAR[],
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
-        content VARCHAR,
+        markdown VARCHAR,
         properties JSON
     )
     """)
@@ -70,7 +70,7 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
         "locations": frontmatter.get("locations", []),
         "created_at": frontmatter.get("created_at", now),
         "updated_at": frontmatter.get("updated_at", now),
-        "content": main_content,
+        "markdown": main_content,
         "properties": frontmatter,
     }
     

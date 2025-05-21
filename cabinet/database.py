@@ -52,7 +52,7 @@ def create_table(conn: duckdb.DuckDBPyConnection):
         locations VARCHAR[],
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
-        content VARCHAR,
+        markdown VARCHAR,
         properties JSON
     )
     """)
@@ -147,8 +147,8 @@ class CabinetDB:
             where_clauses.append(f"({' OR '.join(tag_conditions)})")
         
         if query:
-            # Simple full-text search on title and content
-            where_clauses.append("(title ILIKE ? OR content ILIKE ?)")
+            # Simple full-text search on title and markdown
+            where_clauses.append("(title ILIKE ? OR markdown ILIKE ?)")
             params.extend([f"%{query}%", f"%{query}%"])
         
         # Construct the final query

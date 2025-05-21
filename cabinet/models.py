@@ -14,7 +14,7 @@ class CatalogBase(BaseModel):
     url: HttpUrl
     tags: List[str] = Field(default_factory=list)
     locations: List[HttpUrl] = Field(default_factory=list)
-    content: str
+    markdown: str
     properties: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -33,7 +33,7 @@ class CatalogUpdate(BaseModel):
     url: Optional[HttpUrl] = None
     tags: Optional[List[str]] = None
     locations: Optional[List[HttpUrl]] = None
-    content: Optional[str] = None
+    markdown: Optional[str] = None
 
 
 class CatalogInDB(CatalogBase):

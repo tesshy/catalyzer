@@ -48,7 +48,7 @@ def test_create_catalog(service):
         url="https://example.com/catalog",
         tags=["test", "example"],
         locations=["https://example.com/data"],
-        content="This is a test catalog.",
+        markdown="This is a test catalog.",
     )
     
     result = service.create_catalog(catalog)
@@ -58,7 +58,7 @@ def test_create_catalog(service):
     assert str(result.url) == "https://example.com/catalog"
     assert result.tags == ["test", "example"]
     assert str(result.locations[0]) == "https://example.com/data"
-    assert result.content == "This is a test catalog."
+    assert result.markdown == "This is a test catalog."
     assert result.id is not None
     assert result.created_at is not None
     assert result.updated_at is not None
@@ -74,7 +74,7 @@ def test_get_catalog(service):
         url="https://example.com/catalog",
         tags=["test", "example"],
         locations=["https://example.com/data"],
-        content="This is a test catalog.",
+        markdown="This is a test catalog.",
     )
     created = service.create_catalog(catalog)
     
@@ -95,7 +95,7 @@ def test_update_catalog(service):
         url="https://example.com/catalog",
         tags=["test", "example"],
         locations=["https://example.com/data"],
-        content="This is a test catalog.",
+        markdown="This is a test catalog.",
     )
     created = service.create_catalog(catalog)
     
@@ -123,7 +123,7 @@ def test_delete_catalog(service):
         url="https://example.com/catalog",
         tags=["test", "example"],
         locations=["https://example.com/data"],
-        content="This is a test catalog.",
+        markdown="This is a test catalog.",
     )
     created = service.create_catalog(catalog)
     
@@ -144,7 +144,7 @@ def test_search_catalogs(service):
         url="https://example.com/catalog1",
         tags=["python", "data"],
         locations=["https://example.com/data1"],
-        content="This is Python data.",
+        markdown="This is Python data.",
     )
     service.create_catalog(catalog1)
     
@@ -154,7 +154,7 @@ def test_search_catalogs(service):
         url="https://example.com/catalog2",
         tags=["javascript", "code"],
         locations=["https://example.com/data2"],
-        content="This is JavaScript code.",
+        markdown="This is JavaScript code.",
     )
     service.create_catalog(catalog2)
     

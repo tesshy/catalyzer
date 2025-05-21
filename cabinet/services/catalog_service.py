@@ -64,7 +64,7 @@ class CatalogService:
                 "url": HttpUrl(frontmatter.get("url", "https://example.com/")),
                 "tags": frontmatter.get("tags", []),
                 "locations": [HttpUrl(loc) for loc in frontmatter.get("locations", [])],
-                "content": content,
+                "markdown": content,
                 "properties": frontmatter,
             }
             
