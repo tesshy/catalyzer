@@ -2,12 +2,14 @@
 
 import re
 import yaml
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, UploadFile, File, Form
 from pydantic import HttpUrl
+from markitdown import MarkItDown
 
 from ..models import Catalog, CatalogCreate, CatalogUpdate, SearchQuery
 from ..services.catalog_service import CatalogService
@@ -17,6 +19,60 @@ from ..services.catalog_service import CatalogService
 router = APIRouter(
     tags=["catalogs"],
 )
+
+
+@router.get("/from_url", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+async def create_catalog_from_url(
+    url: str,
+    org_name: str = "default",
+    group_name: str = "default",
+    user_name: str = "default",
+    catalog_service: CatalogService = Depends(),
+):
+    """Create a new catalog entry from a URL.
+    
+    Uses the markitdown library to convert the URL content to a Markdown file.
+    Then creates a catalog entry from the generated Markdown.
+    
+    Args:
+        url: The URL to convert to a Markdown file
+        org_name: Optional organization name
+        group_name: Optional group name
+        user_name: Optional user name
+    """
+    try:
+        # URLから内容を取得してMarkdownに変換
+        markitdown = MarkItDown()
+        result = markitdown.convert_url(url)
+        
+        # タイトルを取得（なければURLから生成）
+        title = result.title or url.split("/")[-1] or "Untitled"
+        
+        # 現在の日時をフォーマット
+        now = datetime.now(timezone.utc).isoformat()
+        
+        # Front matterを作成
+        front_matter = f"""---
+title: {title}
+author: auto-generated
+url: {url}
+tags: [auto-generated]
+locations: ["{url}"]
+created_at: {now}
+updated_at: {now}
+---
+"""
+
+        # Front matterとMarkdownコンテンツを結合
+        markdown_content = front_matter + result.markdown
+        
+        # カタログを作成
+        return catalog_service.create_catalog_from_markdown(group_name, user_name, markdown_content, f"{title}.md")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create catalog from URL: {str(e)}",
+        )
 
 
 @router.post("/{org_name}/{group_name}/{user_name}/", response_model=Catalog, status_code=status.HTTP_201_CREATED)

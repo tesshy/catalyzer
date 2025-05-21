@@ -3,6 +3,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 
 from .routers import catalogs
 
@@ -28,9 +29,19 @@ app.include_router(catalogs_router)
 
 
 @app.get("/")
-async def root():
-    """Root endpoint."""
-    return {"message": "Welcome to Catalyzer::Cabinet"}
+async def root(url: Optional[str] = None):
+    """Root endpoint.
+    
+    When url parameter is provided, it fetches content from the URL
+    and creates a catalog markdown file.
+    """
+    # URLがない場合は通常のウェルカムメッセージを返す
+    if url is None:
+        return {"message": "Welcome to Catalyzer::Cabinet"}
+        
+    # URLが指定されている場合は、カタログルーターのurlから目録作成エンドポイントにリダイレクト
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(f"/from_url?url={url}")
 
 
 @app.get("/health")
