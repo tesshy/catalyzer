@@ -28,10 +28,26 @@ pip install -r requirements.txt
 
 ### Running the Service
 
+#### Local Database (Default)
+
 ```bash
+# Start the FastAPI server with local DuckDB storage
+uvicorn cabinet.main:app --reload
+```
+
+#### MotherDuck Cloud Database
+
+To use MotherDuck cloud database:
+
+```bash
+# Set your MotherDuck token as environment variable
+export MOTHERDUCK_TOKEN='your_motherduck_token'
+
 # Start the FastAPI server
 uvicorn cabinet.main:app --reload
 ```
+
+When the `MOTHERDUCK_TOKEN` environment variable is present, the application will automatically connect to MotherDuck cloud instead of the local database file.
 
 The API will be available at http://localhost:8000
 
@@ -113,6 +129,17 @@ DuckDB is used with the following structure:
 - **Database/Schema**: `{group_name}` - Corresponds to a Group (e.g., department)
 - **Table**: `{user_name}` - Corresponds to a User (e.g., UUID)
 - **Record**: Corresponds to a Markdown catalog file
+
+### Storage Options
+
+#### Local Storage (Default)
+By default, the application uses local DuckDB file storage in the `cabinet/data` directory.
+
+#### MotherDuck Cloud Storage
+When the `MOTHERDUCK_TOKEN` environment variable is set, the application connects to MotherDuck cloud database:
+- The `{group_name}` is used as the database name in MotherDuck
+- Authentication is managed through the MotherDuck token
+- All data is persisted in the cloud
 
 ### Table Definition
 

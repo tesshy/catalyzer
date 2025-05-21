@@ -20,12 +20,21 @@ def get_db_connection(
     db_file: str = DEFAULT_DB_FILE,
 ):
     """Get a DuckDB connection for the specified group."""
-    # Create data directory if it doesn't exist
-    os.makedirs(db_path, exist_ok=True)
+    # Check if MotherDuck token exists
+    motherduck_token = os.environ.get("MOTHERDUCK_TOKEN")
     
-    # Connect to the database
-    db_file_path = os.path.join(db_path, db_file)
-    conn = duckdb.connect(db_file_path)
+    if motherduck_token:
+        # Connect to MotherDuck
+        conn = duckdb.connect(f"md:{group_name}")
+        # Note: MotherDuck authentication is handled by the MOTHERDUCK_TOKEN environment variable
+    else:
+        # Fall back to local database
+        # Create data directory if it doesn't exist
+        os.makedirs(db_path, exist_ok=True)
+        
+        # Connect to the database
+        db_file_path = os.path.join(db_path, db_file)
+        conn = duckdb.connect(db_file_path)
     
     # Use the specified group (database) if not default
     if group_name != "default":
@@ -61,6 +70,7 @@ def create_table(conn: duckdb.DuckDBPyConnection, table_name: str = "cabinet"):
 
 def get_db():
     """Get a database connection for dependency injection."""
+    # Always use in-memory database for testing, regardless of MotherDuck token availability
     conn = duckdb.connect(":memory:")  # Using in-memory database for testing
     create_table(conn, "cabinet")  # Create the table with correct schema
     yield conn
