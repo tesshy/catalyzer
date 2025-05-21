@@ -23,7 +23,8 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(catalogs.router)
+from .routers.catalogs import router as catalogs_router
+app.include_router(catalogs_router)
 
 
 @app.get("/")

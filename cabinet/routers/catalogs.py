@@ -12,6 +12,8 @@ from pydantic import HttpUrl
 from ..models import Catalog, CatalogCreate, CatalogUpdate, SearchQuery
 from ..services.catalog_service import CatalogService
 
+
+# Create a router with explicit routes that don't interfere with dynamic paths
 router = APIRouter(
     prefix="/catalogs",
     tags=["catalogs"],
@@ -35,52 +37,23 @@ async def create_catalog(
     return catalog_service.create_catalog(catalog)
 
 
-@router.get("/{catalog_id}", response_model=Catalog)
-async def get_catalog(
-    catalog_id: UUID,
+@router.get("/catalogs/search", response_model=List[Catalog])
+async def search_catalogs_full_path(
+    tag: Optional[List[str]] = Query(None),
+    q: Optional[str] = Query(None),
     catalog_service: CatalogService = Depends(),
 ):
-    """Get a specific catalog entry."""
-    catalog = catalog_service.get_catalog(catalog_id)
-    if not catalog:
+    """Search for catalogs by tags and/or full-text search (full path)."""
+    if not tag and not q:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Catalog with ID {catalog_id} not found",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one search parameter (tag or q) is required",
         )
-    return catalog
+    
+    return catalog_service.search_catalogs(tags=tag, query=q)
 
 
-@router.put("/{catalog_id}", response_model=Catalog)
-async def update_catalog(
-    catalog_id: UUID,
-    catalog_update: CatalogUpdate,
-    catalog_service: CatalogService = Depends(),
-):
-    """Update a catalog entry."""
-    catalog = catalog_service.update_catalog(catalog_id, catalog_update)
-    if not catalog:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Catalog with ID {catalog_id} not found",
-        )
-    return catalog
-
-
-@router.delete("/{catalog_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_catalog(
-    catalog_id: UUID,
-    catalog_service: CatalogService = Depends(),
-):
-    """Delete a catalog entry."""
-    deleted = catalog_service.delete_catalog(catalog_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Catalog with ID {catalog_id} not found",
-        )
-
-
-@router.get("/search/", response_model=List[Catalog])
+@router.get("/search", response_model=List[Catalog])
 async def search_catalogs(
     tag: Optional[List[str]] = Query(None),
     q: Optional[str] = Query(None),
@@ -135,4 +108,49 @@ async def upload_markdown(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create catalog: {str(e)}",
+        )
+
+
+@router.get("/{catalog_id}", response_model=Catalog)
+async def get_catalog(
+    catalog_id: UUID,
+    catalog_service: CatalogService = Depends(),
+):
+    """Get a specific catalog entry."""
+    catalog = catalog_service.get_catalog(catalog_id)
+    if not catalog:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Catalog with ID {catalog_id} not found",
+        )
+    return catalog
+
+
+@router.put("/{catalog_id}", response_model=Catalog)
+async def update_catalog(
+    catalog_id: UUID,
+    catalog_update: CatalogUpdate,
+    catalog_service: CatalogService = Depends(),
+):
+    """Update a catalog entry."""
+    catalog = catalog_service.update_catalog(catalog_id, catalog_update)
+    if not catalog:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Catalog with ID {catalog_id} not found",
+        )
+    return catalog
+
+
+@router.delete("/{catalog_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_catalog(
+    catalog_id: UUID,
+    catalog_service: CatalogService = Depends(),
+):
+    """Delete a catalog entry."""
+    deleted = catalog_service.delete_catalog(catalog_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Catalog with ID {catalog_id} not found",
         )
