@@ -27,7 +27,7 @@ def test_create_catalog(client):
         "markdown": "This is a test catalog.",
     }
     
-    response = client.post("/catalogs/", json=catalog_data)
+    response = client.post("/default/cabinet/", json=catalog_data)
     assert response.status_code == 201
     data = response.json()
     
@@ -50,7 +50,7 @@ def test_get_catalog(client):
     created = test_create_catalog(client)
     
     # Now get it
-    response = client.get(f"/catalogs/{created['id']}")
+    response = client.get(f"/default/cabinet/{created['id']}")
     assert response.status_code == 200
     data = response.json()
     
@@ -68,7 +68,7 @@ def test_update_catalog(client):
         "title": "Updated Catalog",
         "tags": ["test", "updated"],
     }
-    response = client.put(f"/catalogs/{created['id']}", json=update_data)
+    response = client.put(f"/default/cabinet/{created['id']}", json=update_data)
     assert response.status_code == 200
     data = response.json()
     
@@ -84,11 +84,11 @@ def test_delete_catalog(client):
     created = test_create_catalog(client)
     
     # Now delete it
-    response = client.delete(f"/catalogs/{created['id']}")
+    response = client.delete(f"/default/cabinet/{created['id']}")
     assert response.status_code == 204
     
     # Verify it's gone
-    response = client.get(f"/catalogs/{created['id']}")
+    response = client.get(f"/default/cabinet/{created['id']}")
     assert response.status_code == 404
 
 
@@ -103,7 +103,7 @@ def test_search_catalogs(client):
         "locations": ["https://example.com/data1"],
         "markdown": "This is Python data.",
     }
-    response1 = client.post("/catalogs/", json=catalog1)
+    response1 = client.post("/default/cabinet/", json=catalog1)
     assert response1.status_code == 201
     
     catalog2 = {
@@ -114,32 +114,32 @@ def test_search_catalogs(client):
         "locations": ["https://example.com/data2"],
         "markdown": "This is JavaScript code.",
     }
-    response2 = client.post("/catalogs/", json=catalog2)
+    response2 = client.post("/default/cabinet/", json=catalog2)
     assert response2.status_code == 201
     
     # Search by tag
-    response = client.get("/catalogs/search/?tag=python")
+    response = client.get("/default/cabinet/search/?tag=python")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "Python Data"
     
     # Search by query
-    response = client.get("/catalogs/search/?q=JavaScript")
+    response = client.get("/default/cabinet/search/?q=JavaScript")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "JavaScript Code"
     
     # Search by both
-    response = client.get("/catalogs/search/?tag=code&q=JavaScript")
+    response = client.get("/default/cabinet/search/?tag=code&q=JavaScript")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "JavaScript Code"
     
     # Search with no results
-    response = client.get("/catalogs/search/?tag=nonexistent")
+    response = client.get("/default/cabinet/search/?tag=nonexistent")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 0
@@ -147,5 +147,5 @@ def test_search_catalogs(client):
 
 def test_search_catalogs_empty(client):
     """Test search with no parameters."""
-    response = client.get("/catalogs/search/")
+    response = client.get("/default/cabinet/search/")
     assert response.status_code == 400
