@@ -19,8 +19,9 @@ router = APIRouter(
 )
 
 
-@router.post("/{group_name}/{user_name}/", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+@router.post("/{org_name}/{group_name}/{user_name}/", response_model=Catalog, status_code=status.HTTP_201_CREATED)
 async def create_catalog(
+    org_name: str,
     group_name: str,
     user_name: str,
     catalog: CatalogCreate,
@@ -30,8 +31,9 @@ async def create_catalog(
     return catalog_service.create_catalog(group_name, user_name, catalog)
 
 
-@router.post("/{group_name}/{user_name}/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+@router.post("/{org_name}/{group_name}/{user_name}/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
 async def upload_markdown(
+    org_name: str,
     group_name: str,
     user_name: str,
     request: Request,
@@ -92,8 +94,9 @@ async def upload_markdown(
         )
 
 
-@router.get("/{group_name}/{user_name}/search", response_model=List[Catalog])
+@router.get("/{org_name}/{group_name}/{user_name}/search", response_model=List[Catalog])
 async def search_catalogs(
+    org_name: str,
     group_name: str,
     user_name: str,
     tag: Optional[List[str]] = Query(None),
@@ -110,8 +113,9 @@ async def search_catalogs(
     return catalog_service.search_catalogs(group_name, user_name, tags=tag, query=q)
 
 
-@router.get("/{group_name}/{user_name}/{catalog_id}", response_model=Catalog)
+@router.get("/{org_name}/{group_name}/{user_name}/{catalog_id}", response_model=Catalog)
 async def get_catalog(
+    org_name: str,
     group_name: str,
     user_name: str,
     catalog_id: UUID,
@@ -127,8 +131,9 @@ async def get_catalog(
     return catalog
 
 
-@router.put("/{group_name}/{user_name}/{catalog_id}", response_model=Catalog)
+@router.put("/{org_name}/{group_name}/{user_name}/{catalog_id}", response_model=Catalog)
 async def update_catalog(
+    org_name: str,
     group_name: str,
     user_name: str,
     catalog_id: UUID,
@@ -145,8 +150,9 @@ async def update_catalog(
     return catalog
 
 
-@router.delete("/{group_name}/{user_name}/{catalog_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{org_name}/{group_name}/{user_name}/{catalog_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_catalog(
+    org_name: str,
     group_name: str,
     user_name: str,
     catalog_id: UUID,

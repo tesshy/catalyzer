@@ -9,22 +9,26 @@ import duckdb
 from fastapi import Depends
 
 
-def get_connection_string():
-    """Get the connection string based on environment variables."""
+def get_db(org_name: str):
+    """Get the connection string for a specific organization database."""
     # Check if MotherDuck token is available
-    motherduck_token = os.environ.get("MOTHERDUCK_TOKEN")
+    motherduck_token = os.environ.get("motherduck_token")
     if motherduck_token:
-        # Return MotherDuck connection string
-        return f"md:"
+        print("Using MotherDuck for database storage.")
+        conn = duckdb.connect("md:")
+        conn.execute(f"CREATE DATABASE IF NOT EXISTS {org_name}")
+        conn.execute(f"USE {org_name}")
     else:
-        # Use local file-based storage in the data directory
+        # Use local file-based storage per organization
         data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
         os.makedirs(data_dir, exist_ok=True)
-        return os.path.join(data_dir, "cabinet.duckdb")
+        conn = duckdb.connect(os.path.join(data_dir, f"{org_name}.duckdb"))
 
-
-# Use a single persistent database connection
-DB_CONNECTION = duckdb.connect(get_connection_string())
+    # Set the connection to be persistent
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def create_table(conn: duckdb.DuckDBPyConnection, group_name: str, user_name: str):
@@ -36,7 +40,9 @@ def create_table(conn: duckdb.DuckDBPyConnection, group_name: str, user_name: st
         group_name: Name of the group (schema)
         user_name: Name of the user (table)
     """
-    # Create schema (group) if it doesn't exist
+
+    # Ensure schema (group) exists
+    print(1)
     conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
     
     # Create table (user) in the schema if it doesn't exist
@@ -54,11 +60,6 @@ def create_table(conn: duckdb.DuckDBPyConnection, group_name: str, user_name: st
         properties JSON
     )
     """)
-
-
-def get_db():
-    """Get a database connection for dependency injection."""
-    yield DB_CONNECTION
 
 
 class CabinetDB:
@@ -89,6 +90,7 @@ class CabinetDB:
         placeholders = ", ".join(["?" for _ in catalog_data.keys()])
         
         query = f"INSERT INTO {group_name}.{user_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+        print(query)
         result = self.conn.execute(query, list(catalog_data.values())).fetchone()
         
         # Get the column names from the result
