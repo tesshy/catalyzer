@@ -20,7 +20,7 @@ class CatalogService:
         """Initialize the catalog service."""
         self.db = db
 
-    def create_catalog(self, catalog: CatalogCreate) -> Catalog:
+    def create_catalog(self, group_name: str, user_name: str, catalog: CatalogCreate) -> Catalog:
         """Create a new catalog entry."""
         catalog_dict = catalog.model_dump()
         
@@ -34,7 +34,7 @@ class CatalogService:
         catalog_dict["locations"] = [str(loc) for loc in catalog_dict["locations"]]
         
         # Create the catalog entry
-        result = self.db.create_catalog(catalog_dict)
+        result = self.db.create_catalog(group_name, user_name, catalog_dict)
         
         # Parse the properties field from JSON string if needed
         if "properties" in result and isinstance(result["properties"], str):
@@ -43,10 +43,12 @@ class CatalogService:
         # Convert back to the Catalog model
         return Catalog(**result)
     
-    def create_catalog_from_markdown(self, markdown_content: str, filename: str = None) -> Catalog:
+    def create_catalog_from_markdown(self, group_name: str, user_name: str, markdown_content: str, filename: str = None) -> Catalog:
         """Create a new catalog entry from a markdown file content.
         
         Args:
+            group_name: The group name
+            user_name: The user name
             markdown_content: The content of the markdown file
             filename: Optional filename to use as a fallback for missing title
             
@@ -64,7 +66,7 @@ class CatalogService:
                 "url": HttpUrl(frontmatter.get("url", "https://example.com/")),
                 "tags": frontmatter.get("tags", []),
                 "locations": [HttpUrl(loc) for loc in frontmatter.get("locations", [])],
-                "content": content,
+                "markdown": content,
                 "properties": frontmatter,
             }
             
@@ -76,13 +78,13 @@ class CatalogService:
             
             # Create catalog
             catalog = CatalogCreate(**catalog_data)
-            return self.create_catalog(catalog)
+            return self.create_catalog(group_name, user_name, catalog)
         except Exception as e:
             raise ValueError(f"Failed to create catalog from markdown: {str(e)}")
 
-    def get_catalog(self, catalog_id: UUID) -> Optional[Catalog]:
+    def get_catalog(self, group_name: str, user_name: str, catalog_id: UUID) -> Optional[Catalog]:
         """Get a catalog entry by ID."""
-        result = self.db.get_catalog_by_id(str(catalog_id))
+        result = self.db.get_catalog_by_id(group_name, user_name, str(catalog_id))
         if not result:
             return None
             
@@ -96,10 +98,10 @@ class CatalogService:
         
         return Catalog(**result)
 
-    def update_catalog(self, catalog_id: UUID, catalog_update: CatalogUpdate) -> Optional[Catalog]:
+    def update_catalog(self, group_name: str, user_name: str, catalog_id: UUID, catalog_update: CatalogUpdate) -> Optional[Catalog]:
         """Update a catalog entry."""
         # First, check if the catalog exists
-        existing = self.db.get_catalog_by_id(str(catalog_id))
+        existing = self.db.get_catalog_by_id(group_name, user_name, str(catalog_id))
         if not existing:
             return None
             
@@ -113,7 +115,7 @@ class CatalogService:
             update_data["locations"] = [str(loc) for loc in update_data["locations"]]
         
         # Update the catalog entry
-        result = self.db.update_catalog(str(catalog_id), update_data)
+        result = self.db.update_catalog(group_name, user_name, str(catalog_id), update_data)
         
         if result:
             # Convert string URLs back to HttpUrl objects
@@ -128,13 +130,13 @@ class CatalogService:
         
         return None
 
-    def delete_catalog(self, catalog_id: UUID) -> bool:
+    def delete_catalog(self, group_name: str, user_name: str, catalog_id: UUID) -> bool:
         """Delete a catalog entry."""
-        return self.db.delete_catalog(str(catalog_id))
+        return self.db.delete_catalog(group_name, user_name, str(catalog_id))
 
-    def search_catalogs(self, tags: Optional[List[str]] = None, query: Optional[str] = None) -> List[Catalog]:
+    def search_catalogs(self, group_name: str, user_name: str, tags: Optional[List[str]] = None, query: Optional[str] = None) -> List[Catalog]:
         """Search catalogs by tags and/or full-text search."""
-        results = self.db.search_catalogs(tags, query)
+        results = self.db.search_catalogs(group_name, user_name, tags, query)
         
         # Convert to Catalog models
         catalogs = []

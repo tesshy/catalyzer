@@ -9,13 +9,39 @@ import duckdb
 from fastapi import Depends
 
 
-# Use a single in-memory database connection
-DB_CONNECTION = duckdb.connect(":memory:")
+def get_connection_string():
+    """Get the connection string based on environment variables."""
+    # Check if MotherDuck token is available
+    motherduck_token = os.environ.get("MOTHERDUCK_TOKEN")
+    if motherduck_token:
+        # Return MotherDuck connection string
+        return f"md:"
+    else:
+        # Use local file-based storage in the data directory
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        os.makedirs(data_dir, exist_ok=True)
+        return os.path.join(data_dir, "cabinet.duckdb")
 
-def create_table(conn: duckdb.DuckDBPyConnection):
-    """Create the cabinet table if it doesn't exist."""
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS cabinet (
+
+# Use a single persistent database connection
+DB_CONNECTION = duckdb.connect(get_connection_string())
+
+
+def create_table(conn: duckdb.DuckDBPyConnection, group_name: str, user_name: str):
+    """
+    Create a table for a specific user in a specific group.
+    
+    Args:
+        conn: DuckDB connection
+        group_name: Name of the group (schema)
+        user_name: Name of the user (table)
+    """
+    # Create schema (group) if it doesn't exist
+    conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
+    
+    # Create table (user) in the schema if it doesn't exist
+    conn.execute(f"""
+    CREATE TABLE IF NOT EXISTS {group_name}.{user_name} (
         id UUID PRIMARY KEY,
         title VARCHAR,
         author VARCHAR,
@@ -24,14 +50,10 @@ def create_table(conn: duckdb.DuckDBPyConnection):
         locations VARCHAR[],
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
-        content VARCHAR,
+        markdown VARCHAR,
         properties JSON
     )
     """)
-
-
-# Initialize the table
-create_table(DB_CONNECTION)
 
 
 def get_db():
@@ -46,8 +68,15 @@ class CabinetDB:
         """Initialize the CabinetDB with a connection."""
         self.conn = conn
 
-    def create_catalog(self, catalog_data: Dict[str, Any]) -> Dict[str, Any]:
+    def ensure_table_exists(self, group_name: str, user_name: str):
+        """Ensure the group/user table exists."""
+        create_table(self.conn, group_name, user_name)
+
+    def create_catalog(self, group_name: str, user_name: str, catalog_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new catalog entry."""
+        # Ensure the table exists
+        self.ensure_table_exists(group_name, user_name)
+        
         catalog_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc)
         
@@ -59,17 +88,20 @@ class CabinetDB:
         columns = ", ".join(catalog_data.keys())
         placeholders = ", ".join(["?" for _ in catalog_data.keys()])
         
-        query = f"INSERT INTO cabinet ({columns}) VALUES ({placeholders}) RETURNING *"
+        query = f"INSERT INTO {group_name}.{user_name} ({columns}) VALUES ({placeholders}) RETURNING *"
         result = self.conn.execute(query, list(catalog_data.values())).fetchone()
         
         # Get the column names from the result
         columns = [col[0] for col in self.conn.description]
         return dict(zip(columns, result))
 
-    def get_catalog_by_id(self, catalog_id: str) -> Optional[Dict[str, Any]]:
+    def get_catalog_by_id(self, group_name: str, user_name: str, catalog_id: str) -> Optional[Dict[str, Any]]:
         """Get a catalog entry by ID."""
+        # Ensure the table exists
+        self.ensure_table_exists(group_name, user_name)
+        
         result = self.conn.execute(
-            "SELECT * FROM cabinet WHERE id = ?", [catalog_id]
+            f"SELECT * FROM {group_name}.{user_name} WHERE id = ?", [catalog_id]
         ).fetchone()
         
         if not result:
@@ -78,8 +110,11 @@ class CabinetDB:
         columns = [col[0] for col in self.conn.description]
         return dict(zip(columns, result))
 
-    def update_catalog(self, catalog_id: str, catalog_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_catalog(self, group_name: str, user_name: str, catalog_id: str, catalog_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Update a catalog entry."""
+        # Ensure the table exists
+        self.ensure_table_exists(group_name, user_name)
+        
         # Update the updated_at timestamp
         catalog_data["updated_at"] = datetime.now(timezone.utc)
         
@@ -89,7 +124,7 @@ class CabinetDB:
         values.append(catalog_id)
         
         # Update the record
-        query = f"UPDATE cabinet SET {set_clause} WHERE id = ? RETURNING *"
+        query = f"UPDATE {group_name}.{user_name} SET {set_clause} WHERE id = ? RETURNING *"
         result = self.conn.execute(query, values).fetchone()
         
         if not result:
@@ -98,16 +133,22 @@ class CabinetDB:
         columns = [col[0] for col in self.conn.description]
         return dict(zip(columns, result))
 
-    def delete_catalog(self, catalog_id: str) -> bool:
+    def delete_catalog(self, group_name: str, user_name: str, catalog_id: str) -> bool:
         """Delete a catalog entry."""
+        # Ensure the table exists
+        self.ensure_table_exists(group_name, user_name)
+        
         result = self.conn.execute(
-            "DELETE FROM cabinet WHERE id = ? RETURNING id", [catalog_id]
+            f"DELETE FROM {group_name}.{user_name} WHERE id = ? RETURNING id", [catalog_id]
         ).fetchone()
         
         return bool(result)
 
-    def search_catalogs(self, tags: Optional[List[str]] = None, query: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search_catalogs(self, group_name: str, user_name: str, tags: Optional[List[str]] = None, query: Optional[str] = None) -> List[Dict[str, Any]]:
         """Search catalogs by tags and/or full-text search."""
+        # Ensure the table exists
+        self.ensure_table_exists(group_name, user_name)
+        
         where_clauses = []
         params = []
         
@@ -120,16 +161,16 @@ class CabinetDB:
             where_clauses.append(f"({' OR '.join(tag_conditions)})")
         
         if query:
-            # Simple full-text search on title and content
-            where_clauses.append("(title ILIKE ? OR content ILIKE ?)")
+            # Simple full-text search on title and markdown content
+            where_clauses.append("(title ILIKE ? OR markdown ILIKE ?)")
             params.extend([f"%{query}%", f"%{query}%"])
         
         # Construct the final query
         if where_clauses:
             where_clause = " AND ".join(where_clauses)
-            sql_query = f"SELECT * FROM cabinet WHERE {where_clause}"
+            sql_query = f"SELECT * FROM {group_name}.{user_name} WHERE {where_clause}"
         else:
-            sql_query = "SELECT * FROM cabinet"
+            sql_query = f"SELECT * FROM {group_name}.{user_name}"
         
         # Execute the query
         results = self.conn.execute(sql_query, params).fetchall()

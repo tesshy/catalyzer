@@ -27,7 +27,7 @@ def extract_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
     return frontmatter, main_content
 
 
-def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str = "default") -> str:
+def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str = "default", user: str = "default") -> str:
     """Import a catalog markdown file into the database."""
     # Read the file
     with open(file_path, "r", encoding="utf-8") as f:
@@ -36,14 +36,12 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
     # Extract frontmatter and content
     frontmatter, main_content = extract_frontmatter(content)
     
-    # Use the specified group (database) if not default
-    if group != "default":
-        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group}")
-        conn.execute(f"SET search_path TO {group}")
+    # Create the schema (group) if it doesn't exist
+    conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group}")
     
-    # Create the table if it doesn't exist
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS cabinet (
+    # Create the table (user) if it doesn't exist
+    conn.execute(f"""
+    CREATE TABLE IF NOT EXISTS {group}.{user} (
         id UUID PRIMARY KEY,
         title VARCHAR,
         author VARCHAR,
@@ -52,7 +50,7 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
         locations VARCHAR[],
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
-        content VARCHAR,
+        markdown VARCHAR,
         properties JSON
     )
     """)
@@ -70,7 +68,7 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
         "locations": frontmatter.get("locations", []),
         "created_at": frontmatter.get("created_at", now),
         "updated_at": frontmatter.get("updated_at", now),
-        "content": main_content,
+        "markdown": main_content,
         "properties": frontmatter,
     }
     
@@ -79,7 +77,7 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
     placeholders = ", ".join(["?" for _ in catalog_data.keys()])
     
     conn.execute(
-        f"INSERT INTO cabinet ({columns}) VALUES ({placeholders})",
+        f"INSERT INTO {group}.{user} ({columns}) VALUES ({placeholders})",
         list(catalog_data.values()),
     )
     
@@ -92,6 +90,7 @@ def main():
     parser.add_argument("file", help="Path to the catalog markdown file or directory")
     parser.add_argument("--db", help="Path to the database file", default=":memory:")
     parser.add_argument("--group", help="Group (schema) to use", default="default")
+    parser.add_argument("--user", help="User (table) to use", default="default")
     
     args = parser.parse_args()
     
@@ -105,11 +104,11 @@ def main():
                 for file in files:
                     if file.endswith(".md"):
                         file_path = os.path.join(root, file)
-                        catalog_id = import_catalog(file_path, conn, args.group)
+                        catalog_id = import_catalog(file_path, conn, args.group, args.user)
                         print(f"Imported {file_path} as {catalog_id}")
         else:
             # Import a single file
-            catalog_id = import_catalog(args.file, conn, args.group)
+            catalog_id = import_catalog(args.file, conn, args.group, args.user)
             print(f"Imported {args.file} as {catalog_id}")
     finally:
         conn.close()

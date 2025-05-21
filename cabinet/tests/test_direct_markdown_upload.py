@@ -7,13 +7,7 @@ from fastapi.testclient import TestClient
 from cabinet.main import app
 
 
-@pytest.fixture
-def client():
-    """Get a test client for the FastAPI app."""
-    return TestClient(app)
-
-
-def test_upload_direct_markdown_simple(client):
+def test_upload_direct_markdown_simple(client, test_group, test_user):
     """Test uploading a simple markdown content directly."""
     # Create a simple markdown file with minimal frontmatter
     markdown_content = """---
@@ -28,7 +22,7 @@ This is a simple markdown file.
 
     # Upload the content directly with text/markdown content-type
     response = client.post(
-        "/catalogs/new",
+        f"/{test_group}/{test_user}/new",
         content=markdown_content.encode("utf-8"),
         headers={"Content-Type": "text/markdown"}
     )
@@ -38,7 +32,7 @@ This is a simple markdown file.
     data = response.json()
     assert data["title"] == "Simple Direct Markdown"
     assert data["author"] == "simple@example.com"
-    assert data["content"].startswith("# Simple Content")
+    assert data["markdown"].startswith("# Simple Content")
     
     # Check that the properties field contains the frontmatter data
     assert "properties" in data
