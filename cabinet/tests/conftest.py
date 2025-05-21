@@ -1,19 +1,40 @@
 """Pytest configuration for Cabinet tests."""
 
 import pytest
-import duckdb
-from cabinet.database import create_table
+from fastapi.testclient import TestClient
+
+from ..main import app
+from ..database import DB_CONNECTION, create_table
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_db():
-    """Set up and tear down a test database for all tests."""
-    # Use an in-memory database for testing
-    conn = duckdb.connect(":memory:")
+@pytest.fixture
+def client():
+    """Get a test client for the FastAPI app."""
+    return TestClient(app)
+
+
+@pytest.fixture
+def test_group():
+    """Test group name."""
+    return "test_group"
+
+
+@pytest.fixture
+def test_user():
+    """Test user name."""
+    return "test_user"
+
+
+@pytest.fixture(autouse=True)
+def setup_teardown_database(test_group, test_user):
+    """Set up and clean up the database for each test."""
+    # Create test table
+    create_table(DB_CONNECTION, test_group, test_user)
     
-    # Create the test table
-    create_table(conn)
+    yield
     
-    yield conn
-    
-    conn.close()
+    # Clean up the database after each test
+    try:
+        DB_CONNECTION.execute(f"DROP TABLE IF EXISTS {test_group}.{test_user}")
+    except:
+        pass  # Ignore errors if the table doesn't exist

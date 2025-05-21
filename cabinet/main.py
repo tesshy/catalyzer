@@ -1,7 +1,7 @@
 """Main FastAPI application for Catalyzer::Cabinet."""
 
 import os
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import catalogs
@@ -23,7 +23,8 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(catalogs.router)
+from .routers.catalogs import router as catalogs_router
+app.include_router(catalogs_router)
 
 
 @app.get("/")

@@ -65,17 +65,18 @@ This data is...
 
 ### Catalog Management
 
-- `POST /catalogs/` - Create a new catalog
-- `POST /catalogs/new` - Create a new catalog from a Markdown file upload
-- `GET /catalogs/{catalog_id}` - Get a catalog by ID
-- `PUT /catalogs/{catalog_id}` - Update a catalog
-- `DELETE /catalogs/{catalog_id}` - Delete a catalog
+- POST /{org_name}/{group_name}/{user_name}/ - Create a new catalog
+- POST /{org_name}/{group_name}/{user_name}/new - Create a new catalog from a Markdown file upload
+- GET /{org_name}/{group_name}/{user_name}/{catalog_id} - Get a catalog by ID
+- PUT /{org_name}/{group_name}/{user_name}/{catalog_id} - Update a catalog
+- DELETE /{org_name}/{group_name}/{user_name}/{catalog_id} - Delete a catalog
 
 ### Search
 
-- `GET /catalogs/search/?tag=tag1,tag2` - Search by tags
-- `GET /catalogs/search/?q=searchterm` - Full-text search
-- `GET /catalogs/search/?tag=tag1&q=searchterm` - Combined search
+- GET /{org_name}/{group_name}/{user_name}/search/?tag=tag1,tag2 - Search by tags
+- GET /{org_name}/{group_name}/{user_name}/search/?q=searchterm - Full-text search
+- GET /{org_name}/{group_name}/{user_name}/search/?tag=tag1&q=searchterm - Combined search
+
 
 ### Markdown File Upload
 
@@ -108,14 +109,18 @@ The endpoint will parse the frontmatter metadata and create a catalog entry with
 
 DuckDB is used with the following structure:
 
-- **Database**: Corresponds to a Group (e.g., department)
-- **Table**: Corresponds to a User (e.g., UUID)
+- **Database**: Corresponds to an Organization (`org_name`)
+- **Schema**: Corresponds to a Group (`group_name`)
+- **Table**: Corresponds to a User (`user_name`)
 - **Record**: Corresponds to a Markdown catalog file
 
 ### Table Definition
 
 ```sql
-CREATE TABLE IF NOT EXISTS cabinet (
+-- filepath: /Users/tesshy/Library/CloudStorage/SynologyDrive-tesshy/team-7.org/Developments/catalyzer/cabinet/README.md
+CREATE SCHEMA IF NOT EXISTS {group_name};
+
+CREATE TABLE IF NOT EXISTS {group_name}.{user_name} (
     id UUID PRIMARY KEY,
     title VARCHAR,
     author VARCHAR,

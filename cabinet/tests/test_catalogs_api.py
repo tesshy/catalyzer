@@ -10,13 +10,7 @@ from fastapi.testclient import TestClient
 from cabinet.main import app
 
 
-@pytest.fixture
-def client():
-    """Get a test client for the FastAPI app."""
-    return TestClient(app)
-
-
-def test_create_catalog(client):
+def test_create_catalog(client, test_group, test_user):
     """Test creating a catalog entry."""
     catalog_data = {
         "title": "Test Catalog",
@@ -24,10 +18,10 @@ def test_create_catalog(client):
         "url": "https://example.com/catalog",
         "tags": ["test", "example"],
         "locations": ["https://example.com/data"],
-        "content": "This is a test catalog.",
+        "markdown": "This is a test catalog.",
     }
     
-    response = client.post("/catalogs/", json=catalog_data)
+    response = client.post(f"/{test_group}/{test_user}/", json=catalog_data)
     assert response.status_code == 201
     data = response.json()
     
@@ -36,21 +30,33 @@ def test_create_catalog(client):
     assert data["url"] == "https://example.com/catalog"
     assert data["tags"] == ["test", "example"]
     assert data["locations"] == ["https://example.com/data"]
-    assert data["content"] == "This is a test catalog."
+    assert data["markdown"] == "This is a test catalog."
     assert "id" in data
     assert "created_at" in data
     assert "updated_at" in data
     
+    # Return data for other tests to use
     return data
 
 
-def test_get_catalog(client):
+def test_get_catalog(client, test_group, test_user):
     """Test getting a catalog entry."""
     # First, create a catalog entry
-    created = test_create_catalog(client)
+    catalog_data = {
+        "title": "Test Catalog for Get",
+        "author": "get@example.com",
+        "url": "https://example.com/catalog-get",
+        "tags": ["get", "example"],
+        "locations": ["https://example.com/data-get"],
+        "markdown": "This is a test catalog for get.",
+    }
+    
+    create_response = client.post(f"/{test_group}/{test_user}/", json=catalog_data)
+    assert create_response.status_code == 201
+    created = create_response.json()
     
     # Now get it
-    response = client.get(f"/catalogs/{created['id']}")
+    response = client.get(f"/{test_group}/{test_user}/{created['id']}")
     assert response.status_code == 200
     data = response.json()
     
@@ -58,17 +64,28 @@ def test_get_catalog(client):
     assert data["title"] == created["title"]
 
 
-def test_update_catalog(client):
+def test_update_catalog(client, test_group, test_user):
     """Test updating a catalog entry."""
     # First, create a catalog entry
-    created = test_create_catalog(client)
+    catalog_data = {
+        "title": "Test Catalog for Update",
+        "author": "update@example.com",
+        "url": "https://example.com/catalog-update",
+        "tags": ["update", "example"],
+        "locations": ["https://example.com/data-update"],
+        "markdown": "This is a test catalog for update.",
+    }
+    
+    create_response = client.post(f"/{test_group}/{test_user}/", json=catalog_data)
+    assert create_response.status_code == 201
+    created = create_response.json()
     
     # Now update it
     update_data = {
         "title": "Updated Catalog",
         "tags": ["test", "updated"],
     }
-    response = client.put(f"/catalogs/{created['id']}", json=update_data)
+    response = client.put(f"/{test_group}/{test_user}/{created['id']}", json=update_data)
     assert response.status_code == 200
     data = response.json()
     
@@ -78,21 +95,32 @@ def test_update_catalog(client):
     assert data["author"] == created["author"]  # Unchanged
 
 
-def test_delete_catalog(client):
+def test_delete_catalog(client, test_group, test_user):
     """Test deleting a catalog entry."""
     # First, create a catalog entry
-    created = test_create_catalog(client)
+    catalog_data = {
+        "title": "Test Catalog for Delete",
+        "author": "delete@example.com",
+        "url": "https://example.com/catalog-delete",
+        "tags": ["delete", "example"],
+        "locations": ["https://example.com/data-delete"],
+        "markdown": "This is a test catalog for delete.",
+    }
+    
+    create_response = client.post(f"/{test_group}/{test_user}/", json=catalog_data)
+    assert create_response.status_code == 201
+    created = create_response.json()
     
     # Now delete it
-    response = client.delete(f"/catalogs/{created['id']}")
+    response = client.delete(f"/{test_group}/{test_user}/{created['id']}")
     assert response.status_code == 204
     
     # Verify it's gone
-    response = client.get(f"/catalogs/{created['id']}")
-    assert response.status_code == 404
+    get_response = client.get(f"/{test_group}/{test_user}/{created['id']}")
+    assert get_response.status_code == 404
 
 
-def test_search_catalogs(client):
+def test_search_catalogs(client, test_group, test_user):
     """Test searching for catalogs."""
     # Create some catalog entries
     catalog1 = {
@@ -101,9 +129,9 @@ def test_search_catalogs(client):
         "url": "https://example.com/catalog1",
         "tags": ["python", "data"],
         "locations": ["https://example.com/data1"],
-        "content": "This is Python data.",
+        "markdown": "This is Python data.",
     }
-    response1 = client.post("/catalogs/", json=catalog1)
+    response1 = client.post(f"/{test_group}/{test_user}/", json=catalog1)
     assert response1.status_code == 201
     
     catalog2 = {
@@ -112,40 +140,40 @@ def test_search_catalogs(client):
         "url": "https://example.com/catalog2",
         "tags": ["javascript", "code"],
         "locations": ["https://example.com/data2"],
-        "content": "This is JavaScript code.",
+        "markdown": "This is JavaScript code.",
     }
-    response2 = client.post("/catalogs/", json=catalog2)
+    response2 = client.post(f"/{test_group}/{test_user}/", json=catalog2)
     assert response2.status_code == 201
     
     # Search by tag
-    response = client.get("/catalogs/search/?tag=python")
+    response = client.get(f"/{test_group}/{test_user}/search?tag=python")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "Python Data"
     
     # Search by query
-    response = client.get("/catalogs/search/?q=JavaScript")
+    response = client.get(f"/{test_group}/{test_user}/search?q=JavaScript")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "JavaScript Code"
     
     # Search by both
-    response = client.get("/catalogs/search/?tag=code&q=JavaScript")
+    response = client.get(f"/{test_group}/{test_user}/search?tag=code&q=JavaScript")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "JavaScript Code"
     
     # Search with no results
-    response = client.get("/catalogs/search/?tag=nonexistent")
+    response = client.get(f"/{test_group}/{test_user}/search?tag=nonexistent")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 0
 
 
-def test_search_catalogs_empty(client):
+def test_search_catalogs_empty(client, test_group, test_user):
     """Test search with no parameters."""
-    response = client.get("/catalogs/search/")
+    response = client.get(f"/{test_group}/{test_user}/search")
     assert response.status_code == 400

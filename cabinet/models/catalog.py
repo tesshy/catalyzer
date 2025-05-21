@@ -1,7 +1,7 @@
-"""Data models for Catalyzer::Cabinet."""
+"""Models for catalog entries."""
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Dict, List, Optional, Any
 from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -14,8 +14,8 @@ class CatalogBase(BaseModel):
     url: HttpUrl
     tags: List[str] = Field(default_factory=list)
     locations: List[HttpUrl] = Field(default_factory=list)
-    content: str
-    properties: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    markdown: str
+    properties: Dict[str, Any] = Field(default_factory=dict)
 
 
 class CatalogCreate(CatalogBase):
@@ -33,7 +33,7 @@ class CatalogUpdate(BaseModel):
     url: Optional[HttpUrl] = None
     tags: Optional[List[str]] = None
     locations: Optional[List[HttpUrl]] = None
-    content: Optional[str] = None
+    markdown: Optional[str] = None
     properties: Optional[Dict[str, Any]] = None
 
 
@@ -43,11 +43,6 @@ class CatalogInDB(CatalogBase):
     id: UUID = Field(default_factory=uuid4)
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        """Pydantic config."""
-
-        orm_mode = True
 
 
 class Catalog(CatalogInDB):
@@ -60,4 +55,4 @@ class SearchQuery(BaseModel):
     """Model for search query parameters."""
 
     tag: Optional[List[str]] = None
-    query: Optional[str] = None
+    q: Optional[str] = None
