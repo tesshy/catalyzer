@@ -13,27 +13,30 @@ from ..models import Catalog, CatalogCreate, CatalogUpdate, SearchQuery
 from ..services.catalog_service import CatalogService
 
 router = APIRouter(
-    prefix="/catalogs",
     tags=["catalogs"],
 )
 
 
-@router.post("/", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+@router.post("/{group_name}/{user_name}", response_model=Catalog, status_code=status.HTTP_201_CREATED)
 async def create_catalog(
+    group_name: str,
+    user_name: str,
     catalog: CatalogCreate,
     catalog_service: CatalogService = Depends(),
 ):
     """Create a new catalog entry."""
-    return catalog_service.create_catalog(catalog)
+    return catalog_service.create_catalog(catalog, group_name, user_name)
 
 
-@router.get("/{catalog_id}", response_model=Catalog)
+@router.get("/{group_name}/{user_name}/{catalog_id}", response_model=Catalog)
 async def get_catalog(
+    group_name: str,
+    user_name: str,
     catalog_id: UUID,
     catalog_service: CatalogService = Depends(),
 ):
     """Get a specific catalog entry."""
-    catalog = catalog_service.get_catalog(catalog_id)
+    catalog = catalog_service.get_catalog(catalog_id, group_name, user_name)
     if not catalog:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -42,14 +45,16 @@ async def get_catalog(
     return catalog
 
 
-@router.put("/{catalog_id}", response_model=Catalog)
+@router.put("/{group_name}/{user_name}/{catalog_id}", response_model=Catalog)
 async def update_catalog(
+    group_name: str,
+    user_name: str,
     catalog_id: UUID,
     catalog_update: CatalogUpdate,
     catalog_service: CatalogService = Depends(),
 ):
     """Update a catalog entry."""
-    catalog = catalog_service.update_catalog(catalog_id, catalog_update)
+    catalog = catalog_service.update_catalog(catalog_id, catalog_update, group_name, user_name)
     if not catalog:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -58,13 +63,15 @@ async def update_catalog(
     return catalog
 
 
-@router.delete("/{catalog_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{group_name}/{user_name}/{catalog_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_catalog(
+    group_name: str,
+    user_name: str,
     catalog_id: UUID,
     catalog_service: CatalogService = Depends(),
 ):
     """Delete a catalog entry."""
-    deleted = catalog_service.delete_catalog(catalog_id)
+    deleted = catalog_service.delete_catalog(catalog_id, group_name, user_name)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -72,8 +79,10 @@ async def delete_catalog(
         )
 
 
-@router.get("/search/", response_model=List[Catalog])
+@router.get("/{group_name}/{user_name}/search/", response_model=List[Catalog])
 async def search_catalogs(
+    group_name: str,
+    user_name: str,
     tag: Optional[List[str]] = Query(None),
     q: Optional[str] = Query(None),
     catalog_service: CatalogService = Depends(),
@@ -85,11 +94,13 @@ async def search_catalogs(
             detail="At least one search parameter (tag or q) is required",
         )
     
-    return catalog_service.search_catalogs(tags=tag, query=q)
+    return catalog_service.search_catalogs(tags=tag, query=q, group_name=group_name, user_name=user_name)
 
 
-@router.post("/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+@router.post("/{group_name}/{user_name}/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
 async def upload_markdown(
+    group_name: str,
+    user_name: str,
     request: Request,
     catalog_service: CatalogService = Depends(),
 ):
@@ -150,7 +161,7 @@ async def upload_markdown(
         )
         
         # Create the catalog
-        return catalog_service.create_catalog(catalog)
+        return catalog_service.create_catalog(catalog, group_name, user_name)
         
     except ValueError as e:
         raise HTTPException(
@@ -199,7 +210,7 @@ async def upload_markdown(
         )
         
         # Create the catalog
-        return catalog_service.create_catalog(catalog)
+        return catalog_service.create_catalog(catalog, group_name, user_name)
         
     except ValueError as e:
         raise HTTPException(

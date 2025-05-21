@@ -14,7 +14,8 @@ DEFAULT_DB_FILE = "cabinet.duckdb"
 
 
 def get_db_connection(
-    group: str = "default",
+    group_name: str = "default",
+    user_name: str = "cabinet",
     db_path: str = DEFAULT_DB_PATH,
     db_file: str = DEFAULT_DB_FILE,
 ):
@@ -27,12 +28,12 @@ def get_db_connection(
     conn = duckdb.connect(db_file_path)
     
     # Use the specified group (database) if not default
-    if group != "default":
-        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group}")
-        conn.execute(f"SET search_path TO {group}")
+    if group_name != "default":
+        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
+        conn.execute(f"SET search_path TO {group_name}")
     
     # Create the table if it doesn't exist
-    create_table(conn)
+    create_table(conn, user_name)
     
     try:
         yield conn
@@ -40,10 +41,10 @@ def get_db_connection(
         conn.close()
 
 
-def create_table(conn: duckdb.DuckDBPyConnection):
+def create_table(conn: duckdb.DuckDBPyConnection, table_name: str = "cabinet"):
     """Create the cabinet table if it doesn't exist."""
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS cabinet (
+    conn.execute(f"""
+    CREATE TABLE IF NOT EXISTS {table_name} (
         id UUID PRIMARY KEY,
         title VARCHAR,
         author VARCHAR,
@@ -61,7 +62,7 @@ def create_table(conn: duckdb.DuckDBPyConnection):
 def get_db():
     """Get a database connection for dependency injection."""
     conn = duckdb.connect(":memory:")  # Using in-memory database for testing
-    create_table(conn)  # Create the table with correct schema
+    create_table(conn, "cabinet")  # Create the table with correct schema
     yield conn
     conn.close()
 
@@ -69,9 +70,10 @@ def get_db():
 class CabinetDB:
     """Cabinet database operations."""
 
-    def __init__(self, conn: duckdb.DuckDBPyConnection = Depends(get_db)):
+    def __init__(self, conn: duckdb.DuckDBPyConnection = Depends(get_db), table_name: str = "cabinet"):
         """Initialize the CabinetDB with a connection."""
         self.conn = conn
+        self.table_name = table_name
 
     def create_catalog(self, catalog_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new catalog entry."""
@@ -86,7 +88,7 @@ class CabinetDB:
         columns = ", ".join(catalog_data.keys())
         placeholders = ", ".join(["?" for _ in catalog_data.keys()])
         
-        query = f"INSERT INTO cabinet ({columns}) VALUES ({placeholders}) RETURNING *"
+        query = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
         result = self.conn.execute(query, list(catalog_data.values())).fetchone()
         
         # Get the column names from the result
@@ -96,7 +98,7 @@ class CabinetDB:
     def get_catalog_by_id(self, catalog_id: str) -> Optional[Dict[str, Any]]:
         """Get a catalog entry by ID."""
         result = self.conn.execute(
-            "SELECT * FROM cabinet WHERE id = ?", [catalog_id]
+            f"SELECT * FROM {self.table_name} WHERE id = ?", [catalog_id]
         ).fetchone()
         
         if not result:
@@ -116,7 +118,7 @@ class CabinetDB:
         values.append(catalog_id)
         
         # Update the record
-        query = f"UPDATE cabinet SET {set_clause} WHERE id = ? RETURNING *"
+        query = f"UPDATE {self.table_name} SET {set_clause} WHERE id = ? RETURNING *"
         result = self.conn.execute(query, values).fetchone()
         
         if not result:
@@ -128,7 +130,7 @@ class CabinetDB:
     def delete_catalog(self, catalog_id: str) -> bool:
         """Delete a catalog entry."""
         result = self.conn.execute(
-            "DELETE FROM cabinet WHERE id = ? RETURNING id", [catalog_id]
+            f"DELETE FROM {self.table_name} WHERE id = ? RETURNING id", [catalog_id]
         ).fetchone()
         
         return bool(result)
@@ -154,9 +156,9 @@ class CabinetDB:
         # Construct the final query
         if where_clauses:
             where_clause = " AND ".join(where_clauses)
-            sql_query = f"SELECT * FROM cabinet WHERE {where_clause}"
+            sql_query = f"SELECT * FROM {self.table_name} WHERE {where_clause}"
         else:
-            sql_query = "SELECT * FROM cabinet"
+            sql_query = f"SELECT * FROM {self.table_name}"
         
         # Execute the query
         results = self.conn.execute(sql_query, params).fetchall()

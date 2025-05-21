@@ -27,7 +27,7 @@ def extract_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
     return frontmatter, main_content
 
 
-def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str = "default") -> str:
+def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group_name: str = "default", user_name: str = "cabinet") -> str:
     """Import a catalog markdown file into the database."""
     # Read the file
     with open(file_path, "r", encoding="utf-8") as f:
@@ -37,13 +37,13 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
     frontmatter, main_content = extract_frontmatter(content)
     
     # Use the specified group (database) if not default
-    if group != "default":
-        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group}")
-        conn.execute(f"SET search_path TO {group}")
+    if group_name != "default":
+        conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
+        conn.execute(f"SET search_path TO {group_name}")
     
     # Create the table if it doesn't exist
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS cabinet (
+    conn.execute(f"""
+    CREATE TABLE IF NOT EXISTS {user_name} (
         id UUID PRIMARY KEY,
         title VARCHAR,
         author VARCHAR,
@@ -79,7 +79,7 @@ def import_catalog(file_path: str, conn: duckdb.DuckDBPyConnection, group: str =
     placeholders = ", ".join(["?" for _ in catalog_data.keys()])
     
     conn.execute(
-        f"INSERT INTO cabinet ({columns}) VALUES ({placeholders})",
+        f"INSERT INTO {user_name} ({columns}) VALUES ({placeholders})",
         list(catalog_data.values()),
     )
     
@@ -92,6 +92,7 @@ def main():
     parser.add_argument("file", help="Path to the catalog markdown file or directory")
     parser.add_argument("--db", help="Path to the database file", default=":memory:")
     parser.add_argument("--group", help="Group (schema) to use", default="default")
+    parser.add_argument("--user", help="User (table) to use", default="cabinet")
     
     args = parser.parse_args()
     
@@ -105,11 +106,11 @@ def main():
                 for file in files:
                     if file.endswith(".md"):
                         file_path = os.path.join(root, file)
-                        catalog_id = import_catalog(file_path, conn, args.group)
+                        catalog_id = import_catalog(file_path, conn, args.group, args.user)
                         print(f"Imported {file_path} as {catalog_id}")
         else:
             # Import a single file
-            catalog_id = import_catalog(args.file, conn, args.group)
+            catalog_id = import_catalog(args.file, conn, args.group, args.user)
             print(f"Imported {args.file} as {catalog_id}")
     finally:
         conn.close()
