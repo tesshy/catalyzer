@@ -1,1 +1,0 @@
-"""Catalyzer::Cabinet - Catalog System for Datalake."""
