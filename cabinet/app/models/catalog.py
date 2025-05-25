@@ -16,6 +16,7 @@ class CatalogBase(BaseModel):
     locations: List[HttpUrl] = Field(default_factory=list)
     markdown: str
     properties: Dict[str, Any] = Field(default_factory=dict)
+    vector: Optional[List[float]] = Field(default=None, description="Vector representation of the markdown content")
 
 
 class CatalogCreate(CatalogBase):
@@ -35,6 +36,7 @@ class CatalogUpdate(BaseModel):
     locations: Optional[List[HttpUrl]] = None
     markdown: Optional[str] = None
     properties: Optional[Dict[str, Any]] = None
+    vector: Optional[List[float]] = None
 
 
 class CatalogInDB(CatalogBase):
