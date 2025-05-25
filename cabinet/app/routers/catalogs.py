@@ -196,3 +196,50 @@ async def generate_markdown_from_url(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to generate markdown from URL: {str(e)}",
         )
+
+
+@router.get("/{org_name}/{group_name}/{user_name}/new", response_model=Catalog, status_code=status.HTTP_201_CREATED)
+async def create_catalog_from_url(
+    org_name: str,
+    group_name: str,
+    user_name: str,
+    url: str = Query(..., description="URL to fetch content from"),
+    markdown_service: MarkdownService = Depends(get_markdown_service),
+    catalog_service: CatalogService = Depends(),
+):
+    """Create a new catalog entry from a URL.
+    
+    Uses markitdown to convert web content to markdown with front matter,
+    then creates a new catalog entry from the markdown content.
+    
+    Args:
+        org_name: The organization name
+        group_name: The group name
+        user_name: The user name
+        url: The URL to fetch and convert
+        markdown_service: Service for markdown operations
+        catalog_service: Service for catalog operations
+        
+    Returns:
+        The created catalog entry
+        
+    Raises:
+        HTTPException: If the URL is invalid or content cannot be converted
+    """
+    try:
+        # Generate markdown content from URL
+        markdown_content = markdown_service.convert_url_to_markdown(url)
+        
+        # Create catalog from markdown content
+        return catalog_service.create_catalog_from_markdown(group_name, user_name, markdown_content)
+    
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to parse markdown: {str(e)}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create catalog from URL: {str(e)}",
+        )
