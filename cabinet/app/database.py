@@ -41,6 +41,13 @@ def create_table(conn: duckdb.DuckDBPyConnection, group_name: str, user_name: st
         user_name: Name of the user (table)
     """
 
+    # Load Vector Similarity Search extension
+    try:
+        conn.execute("LOAD vss")
+    except Exception as e:
+        print(f"Warning: Could not load VSS extension: {e}")
+        print("Vector similarity search will not be available.")
+
     # Ensure schema (group) exists
     print(1)
     conn.execute(f"CREATE SCHEMA IF NOT EXISTS {group_name}")
@@ -57,7 +64,8 @@ def create_table(conn: duckdb.DuckDBPyConnection, group_name: str, user_name: st
         created_at TIMESTAMP,
         updated_at TIMESTAMP,
         markdown VARCHAR,
-        properties JSON
+        properties JSON,
+        vector FLOAT[384]
     )
     """)
 
@@ -176,6 +184,31 @@ class CabinetDB:
         
         # Execute the query
         results = self.conn.execute(sql_query, params).fetchall()
+        
+        # Convert results to dictionaries
+        columns = [col[0] for col in self.conn.description]
+        return [dict(zip(columns, row)) for row in results]
+
+    def vector_search_catalogs(self, group_name: str, user_name: str, query_vector: List[float], limit: int = 10) -> List[Dict[str, Any]]:
+        """Search catalogs using vector similarity."""
+        # Ensure the table exists
+        self.ensure_table_exists(group_name, user_name)
+        
+        try:
+            # Try to use vector similarity search if VSS extension is available
+            sql_query = f"""
+            SELECT *, array_cosine_similarity(vector, ?) as similarity_score
+            FROM {group_name}.{user_name}
+            WHERE vector IS NOT NULL
+            ORDER BY similarity_score DESC
+            LIMIT ?
+            """
+            results = self.conn.execute(sql_query, [query_vector, limit]).fetchall()
+        except Exception as e:
+            print(f"Vector search failed, falling back to regular search: {e}")
+            # Fallback to regular search
+            sql_query = f"SELECT * FROM {group_name}.{user_name} WHERE vector IS NOT NULL LIMIT ?"
+            results = self.conn.execute(sql_query, [limit]).fetchall()
         
         # Convert results to dictionaries
         columns = [col[0] for col in self.conn.description]

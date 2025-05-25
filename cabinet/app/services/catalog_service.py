@@ -11,6 +11,7 @@ from pydantic import HttpUrl
 from ..database import CabinetDB
 from ..models import Catalog, CatalogCreate, CatalogUpdate
 from ..tools.import_catalog import extract_frontmatter
+from .vectorization_service import get_vectorization_service
 
 
 class CatalogService:
@@ -19,6 +20,7 @@ class CatalogService:
     def __init__(self, db: CabinetDB = Depends()):
         """Initialize the catalog service."""
         self.db = db
+        self.vectorization_service = get_vectorization_service()
 
     def create_catalog(self, group_name: str, user_name: str, catalog: CatalogCreate) -> Catalog:
         """Create a new catalog entry."""
@@ -32,6 +34,12 @@ class CatalogService:
         # Convert URLs to strings for database storage
         catalog_dict["url"] = str(catalog_dict["url"])
         catalog_dict["locations"] = [str(loc) for loc in catalog_dict["locations"]]
+        
+        # Generate vector from markdown content if not provided
+        if not catalog_dict.get("vector") and catalog_dict.get("markdown"):
+            vector = self.vectorization_service.vectorize_text(catalog_dict["markdown"])
+            if vector:
+                catalog_dict["vector"] = vector
         
         # Create the catalog entry
         result = self.db.create_catalog(group_name, user_name, catalog_dict)
@@ -114,6 +122,12 @@ class CatalogService:
         if "locations" in update_data and update_data["locations"]:
             update_data["locations"] = [str(loc) for loc in update_data["locations"]]
         
+        # Re-generate vector if markdown content is updated
+        if "markdown" in update_data and update_data["markdown"]:
+            vector = self.vectorization_service.vectorize_text(update_data["markdown"])
+            if vector:
+                update_data["vector"] = vector
+        
         # Update the catalog entry
         result = self.db.update_catalog(group_name, user_name, str(catalog_id), update_data)
         
@@ -137,6 +151,32 @@ class CatalogService:
     def search_catalogs(self, group_name: str, user_name: str, tags: Optional[List[str]] = None, query: Optional[str] = None) -> List[Catalog]:
         """Search catalogs by tags and/or full-text search."""
         results = self.db.search_catalogs(group_name, user_name, tags, query)
+        
+        # Convert to Catalog models
+        catalogs = []
+        for result in results:
+            # Convert string URLs to HttpUrl objects
+            result["url"] = HttpUrl(result["url"])
+            result["locations"] = [HttpUrl(loc) for loc in result["locations"]]
+            
+            # Parse the properties field from JSON string if needed
+            if "properties" in result and isinstance(result["properties"], str):
+                result["properties"] = json.loads(result["properties"])
+                
+            catalogs.append(Catalog(**result))
+        
+        return catalogs
+
+    def vector_search_catalogs(self, group_name: str, user_name: str, query_text: str, limit: int = 10) -> List[Catalog]:
+        """Search catalogs using vector similarity based on query text."""
+        # Generate vector from query text
+        query_vector = self.vectorization_service.vectorize_text(query_text)
+        if not query_vector:
+            # Fallback to regular text search if vectorization fails
+            return self.search_catalogs(group_name, user_name, query=query_text)
+        
+        # Perform vector search
+        results = self.db.vector_search_catalogs(group_name, user_name, query_vector, limit)
         
         # Convert to Catalog models
         catalogs = []
